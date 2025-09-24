@@ -777,7 +777,50 @@ async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger') {
         }
     }
 
-    const htmlContent = imprimirPedido(idAtual, clienteId) + `<p>${estado}</p>`; // Adiciona o estado ao final do HTML para o PDF
+    // Resolve o ID do carrinho com variantes possíveis para garantir que encontramos
+    // o carrinho em memória: tenta raw id, id + '@c.us' e a versão sanitizada.
+    let resolvedId = resolveCartId(idAtual, clienteId) || idAtual;
+    try {
+        if (!resolvedId) {
+            const withSuffix = String(idAtual) + '@c.us';
+            resolvedId = resolveCartId(withSuffix, clienteId) || withSuffix;
+        }
+    } catch (e) { /* ignore */ }
+    try { resolvedId = resolveCartId(String(idAtual)) || resolvedId; } catch(e){}
+
+    // Gera conteúdo HTML do pedido. Se imprimirPedido não encontrar o pedido
+    // (retornando a mensagem de 'Pedido não encontrado'), tenta construir o
+    // HTML a partir do carrinho em memória usando imprimirPedidoFromRecord.
+    let htmlContent = imprimirPedido(resolvedId, clienteId) || '';
+    if (!htmlContent || String(htmlContent).toLowerCase().includes('pedido não encontrado')) {
+        try {
+            const carrinhosLocal = getCarrinhos(clienteId);
+            const carrinho = carrinhosLocal[resolvedId] || carrinhosLocal[String(idAtual)] || carrinhosLocal[String(idAtual) + '@c.us'] || null;
+            const pedidoRecord = {
+                id: resolvedId || idAtual,
+                ts: Date.now(),
+                total: carrinho ? valorTotal(resolvedId || idAtual, clienteId) : 0,
+                entrega: carrinho ? (carrinho.entrega ? 1 : 0) : 0,
+                endereco: carrinho ? (carrinho.endereco || null) : null,
+                estado: estado || null,
+                items: carrinho && Array.isArray(carrinho.carrinho) ? carrinho.carrinho : [],
+                raw: carrinho ? {
+                    nome: carrinho.nome || null,
+                    endereco: carrinho.endereco || null,
+                    valorTotal: carrinho ? valorTotal(resolvedId || idAtual, clienteId) : 0,
+                    carrinho: carrinho && Array.isArray(carrinho.carrinho) ? carrinho.carrinho.map(i => ({ id: i.id, nome: i.nome, quantidade: i.quantidade, preparo: i.preparo, preco: i.preco })) : []
+                } : {}
+            };
+            // usar imprimirPedidoFromRecord para montar um HTML razoável
+            htmlContent = imprimirPedidoFromRecord(pedidoRecord) + `<p>${estado}</p>`;
+            console.log('[salvarPedido] Fallback: gerado HTML a partir do carrinho em memória para', resolvedId || idAtual);
+        } catch (e) {
+            console.error('[salvarPedido] erro ao construir fallback HTML do pedido:', e && e.message ? e.message : e);
+            htmlContent = imprimirPedido(idAtual, clienteId) + `<p>${estado}</p>`; // último recurso
+        }
+    } else {
+        htmlContent += `<p>${estado}</p>`; // Adiciona estado ao HTML quando imprimirPedido teve sucesso
+    }
 
     // Tenta localizar um Chrome/Chromium instalado localmente para passar o executablePath
     const chromeCandidates = [
@@ -834,37 +877,41 @@ async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger') {
         try { if (browser) await browser.close(); } catch (e) {}
     }
 
-    // Define o caminho para o executável do SumatraPDF
-    // Baseado na sua estrutura "src/bin", assumimos que 'bin' será copiado para o root da build
-    const sumatraPdfPath = path.join(process.cwd(), 'bin', 'SumatraPDF-3.4.6-32.exe');
+    // Define o caminho para o executável do SumatraPDF (configurável via env SUMATRA_PATH)
+    // Baseado na sua estrutura "bin" como convenção, mas aceita override por variável de ambiente
+    const sumatraPdfPathEnv = process.env.SUMATRA_PATH || path.join(process.cwd(), 'bin', 'SumatraPDF-3.4.6-32.exe');
+    const sumatraExists = (process.platform === 'win32') && fs.existsSync(sumatraPdfPathEnv);
 
-    // Imprimir (opcional)
+    // Imprimir (opcional) - só inclui o sumatraPdfPath para pdf-to-printer se realmente existir
+    let printSuccess = false;
     try {
         const printerName = process.env.PRINTER_NAME || 'Microsoft Print to PDF';
-        await pdfPrinter.print(filePath, {
-            printer: printerName,
-            sumatraPdfPath: process.platform === 'win32' ? sumatraPdfPath : undefined
-        });
+        const printOptions = { printer: printerName };
+        if (sumatraExists) {
+            printOptions.sumatraPdfPath = sumatraPdfPathEnv;
+        }
+        await pdfPrinter.print(filePath, printOptions);
         console.log('Impressão enviada com sucesso.');
+        printSuccess = true;
     } catch (printError) {
         // Log detalhado para ajudar no diagnóstico
         try { console.error('Erro ao imprimir pedido (pdf-to-printer):', printError); } catch(e) { console.error('Erro ao imprimir pedido (mensagem):', printError && printError.message ? printError.message : printError); }
         // Tenta fallback: invocar diretamente o Sumatra se estiver disponível (Windows)
         try {
-            if (process.platform === 'win32' && fs.existsSync(sumatraPdfPath)) {
+            if (sumatraExists) {
                 const { spawn } = require('child_process');
                 const printerName = process.env.PRINTER_NAME || 'Microsoft Print to PDF';
                 console.log('[PRINT-FALLBACK] printerName=', printerName);
-                // list default printers for debugging
+                // list default printers for debugging (best-effort)
                 try {
                     const { execSync } = require('child_process');
                     const wmic = execSync('wmic printer get Name,Default /format:csv', { encoding: 'utf8' });
                     console.log('[PRINT-FALLBACK] Impressoras detectadas (wmic):\n' + wmic);
                 } catch (wmicErr) { console.warn('[PRINT-FALLBACK] não foi possível listar impressoras via wmic:', wmicErr && wmicErr.message ? wmicErr.message : wmicErr); }
                 const args = ['-print-to', printerName, '-silent', filePath];
-                console.log('[PRINT-FALLBACK] executando:', sumatraPdfPath, args.join(' '));
+                console.log('[PRINT-FALLBACK] executando fallback direto Sumatra:', sumatraPdfPathEnv, args.join(' '));
                 await new Promise((resolve, reject) => {
-                    const p = spawn(sumatraPdfPath, args, { windowsHide: true });
+                    const p = spawn(sumatraPdfPathEnv, args, { windowsHide: true });
                     let stderr = '';
                     let stdout = '';
                     p.stdout && p.stdout.on('data', d => { stdout += String(d); });
@@ -872,6 +919,7 @@ async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger') {
                     p.on('close', async (code) => {
                         if (code === 0) {
                             console.log('[PRINT-FALLBACK] Sumatra finalizou com código 0');
+                            printSuccess = true;
                             return resolve();
                         }
                         console.error('[PRINT-FALLBACK] Sumatra finalizou com código', code, 'stderr:', stderr, 'stdout:', stdout);
@@ -881,7 +929,7 @@ async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger') {
                             try {
                                 console.log('[PRINT-FALLBACK] Tentando imprimir na impressora padrão via Sumatra (-print-to-default)');
                                 const argsDefault = ['-print-to-default', filePath];
-                                const p2 = spawn(sumatraPdfPath, argsDefault, { windowsHide: true });
+                                const p2 = spawn(sumatraPdfPathEnv, argsDefault, { windowsHide: true });
                                 let stderr2 = '';
                                 let stdout2 = '';
                                 p2.stdout && p2.stdout.on('data', d => { stdout2 += String(d); });
@@ -889,6 +937,7 @@ async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger') {
                                 p2.on('close', (code2) => {
                                     if (code2 === 0) {
                                         console.log('[PRINT-FALLBACK] Sumatra (default) finalizou com código 0');
+                                        printSuccess = true;
                                         return resolve();
                                     }
                                     console.error('[PRINT-FALLBACK] Sumatra (default) finalizou com código', code2, 'stderr:', stderr2, 'stdout:', stdout2);
@@ -948,16 +997,23 @@ async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger') {
         console.error('Erro ao persistir pedido no DB:', dbErr && dbErr.message ? dbErr.message : dbErr);
     }
 
-    // Após persistir e tentar imprimir, remover arquivos gerados (PDF/HTML) para economizar espaço
+    // Após persistir e tentar imprimir, remover arquivos gerados (PDF/HTML) SOMENTE se a impressão foi bem sucedida
     try {
         const pdfExists = fs.existsSync(filePath);
         const htmlFallback = filePath.replace(/\.pdf$/i, '.html');
         const htmlExists = fs.existsSync(htmlFallback);
-        if (pdfExists) {
-            try { fs.unlinkSync(filePath); console.log('PDF removido:', filePath); } catch(e) { console.warn('Falha ao remover PDF:', e); }
-        }
-        if (htmlExists) {
-            try { fs.unlinkSync(htmlFallback); console.log('HTML fallback removido:', htmlFallback); } catch(e) { console.warn('Falha ao remover HTML fallback:', e); }
+        if (printSuccess) {
+            if (pdfExists) {
+                try { fs.unlinkSync(filePath); console.log('PDF removido:', filePath); } catch(e) { console.warn('Falha ao remover PDF:', e); }
+            }
+            if (htmlExists) {
+                try { fs.unlinkSync(htmlFallback); console.log('HTML fallback removido:', htmlFallback); } catch(e) { console.warn('Falha ao remover HTML fallback:', e); }
+            }
+        } else {
+            // Se a impressão falhou, manter os arquivos gerados para inspeção manual
+            console.log('[salvarPedido] Impressão falhou; mantendo arquivos para inspeção:');
+            if (pdfExists) console.log('  PDF:', filePath);
+            if (htmlExists) console.log('  HTML:', htmlFallback);
         }
     } catch (remErr) {
         console.error('Erro ao tentar remover arquivos gerados:', remErr && remErr.message ? remErr.message : remErr);

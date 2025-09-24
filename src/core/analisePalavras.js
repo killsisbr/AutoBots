@@ -92,6 +92,7 @@ function limparTexto(texto) {
 // 🔹 Lógica para adicionar bebidas
 async function processarBebidas(palavras, idAtual, carrinhoAtual, palavrasProcessadas = new Set(), clienteId = 'brutus-burger') {
     const mapeamentos = await getMapeamentosCompletos(clienteId);
+    const adicionados = []; // coletar itens adicionados para retorno
     
     for (let i = 0; i < palavras.length; i++) {
         const anterior = palavras[i - 1] || '';
@@ -152,6 +153,9 @@ async function processarBebidas(palavras, idAtual, carrinhoAtual, palavrasProces
             carrinhoAtual.alertAdicionado = false;
 
             console.log(`✔ Bebida adicionada: ${melhorMatch.chave}, quantidade: ${quantidade}`);
+
+            // registra o item adicionado para sinalizar ao chamador
+            adicionados.push({ itemId: melhorMatch.itemId, quantidade, chave: melhorMatch.chave });
             
             // Marcar as palavras como processadas
             const palavrasCombo = melhorMatch.combo.split(' ');
@@ -162,6 +166,8 @@ async function processarBebidas(palavras, idAtual, carrinhoAtual, palavrasProces
             i += melhorMatch.combo.split(' ').length - 1;
         }
     }
+
+    return adicionados;
 }
 
 // 🔹 Lógica para adicionar lanches
@@ -388,10 +394,10 @@ function getPix(palavras, carrinhoAtual, msg, idAtual) {
 async function analisarPalavras(palavras, carrinhoAtual, msg, idAtual, client, MessageMedia, clienteId = 'brutus-burger') {
     // Primeiro processa bebidas
     const palavrasProcessadas = new Set();
-    await processarBebidas(palavras, idAtual, carrinhoAtual, palavrasProcessadas, clienteId);
+    const bebidasAdicionadas = await processarBebidas(palavras, idAtual, carrinhoAtual, palavrasProcessadas, clienteId) || [];
     
     // Depois processa lanches, mas ignora palavras já processadas como bebidas
-    const lanches = await processarLanches(palavras, idAtual, carrinhoAtual, palavrasProcessadas, clienteId);
+    const lanches = await processarLanches(palavras, idAtual, carrinhoAtual, palavrasProcessadas, clienteId) || [];
     
     // Criar proxy de mensagens específico para este cliente
     const clientResp = mensagens.createClientMensagem(clienteId);
@@ -407,7 +413,13 @@ async function analisarPalavras(palavras, carrinhoAtual, msg, idAtual, client, M
         carrinhoAtual.alertAdicionado = true;
     }
 
-    return lanches;
+    // Retorna todos os itens adicionados (bebidas + lanches) para que os chamadores
+    // saibam se alguma adição ocorreu e possam evitar enviar respostas duplicadas.
+    try {
+        console.log('[analisePalavras] DEBUG retorno - bebidasAdicionadas:', JSON.stringify(bebidasAdicionadas));
+        console.log('[analisePalavras] DEBUG retorno - lanches:', JSON.stringify(lanches));
+    } catch (e) { console.log('[analisePalavras] DEBUG retorno - erro ao serializar:', e && e.message); }
+    return (bebidasAdicionadas || []).concat(lanches || []);
 }
 
 module.exports = {
