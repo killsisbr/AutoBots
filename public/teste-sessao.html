@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Sessão Multi-Tenant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        #results {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Teste de Sessão Multi-Tenant</h1>
+        
+        <div class="status info">
+            <strong>Status do Sistema:</strong> <span id="systemStatus">Verificando...</span>
+        </div>
+
+        <h3>Testes de Autenticação</h3>
+        <button onclick="testarLogin()">Fazer Login (cliente1)</button>
+        <button onclick="testarLogout()">Fazer Logout</button>
+        <button onclick="verificarSessao()">Verificar Sessão</button>
+        
+        <h3>Testes de API</h3>
+        <button onclick="testarAPICardapio()">Testar API Cardápio</button>
+        <button onclick="testarAPIMensagens()">Testar API Mensagens</button>
+        <button onclick="testarAPIPedidos()">Testar API Pedidos</button>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}:</strong> ${message}`;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function getClienteId() {
+            return sessionStorage.getItem('clienteId') || localStorage.getItem('clienteId');
+        }
+
+        function buildApiUrl(endpoint) {
+            const clienteId = getClienteId();
+            if (!clienteId) {
+                throw new Error('Cliente não autenticado');
+            }
+            return `/api/${endpoint}?clienteId=${encodeURIComponent(clienteId)}`;
+        }
+
+        async function testarLogin() {
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ clienteId: 'cliente1', senha: 'senha123' })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    sessionStorage.setItem('clienteId', 'cliente1');
+                    log('✅ Login realizado com sucesso!', 'success');
+                    log(`Token: ${data.token}`, 'info');
+                } else {
+                    log(`❌ Erro no login: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro na requisição de login: ${error.message}`, 'error');
+            }
+        }
+
+        async function testarLogout() {
+            try {
+                sessionStorage.removeItem('clienteId');
+                localStorage.removeItem('clienteId');
+                log('✅ Logout realizado com sucesso!', 'success');
+            } catch (error) {
+                log(`❌ Erro no logout: ${error.message}`, 'error');
+            }
+        }
+
+        async function verificarSessao() {
+            const clienteId = getClienteId();
+            if (clienteId) {
+                log(`✅ Sessão ativa para cliente: ${clienteId}`, 'success');
+            } else {
+                log('❌ Nenhuma sessão ativa', 'error');
+            }
+        }
+
+        async function testarAPICardapio() {
+            try {
+                const url = buildApiUrl('cardapio/mappings');
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log('✅ API Cardápio funcionando!', 'success');
+                    log(`Dados: ${JSON.stringify(data).substring(0, 100)}...`, 'info');
+                } else {
+                    log(`❌ Erro na API Cardápio: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro na requisição: ${error.message}`, 'error');
+            }
+        }
+
+        async function testarAPIMensagens() {
+            try {
+                const url = buildApiUrl('mensagens');
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log('✅ API Mensagens funcionando!', 'success');
+                    log(`Total de mensagens: ${data.length || 0}`, 'info');
+                } else {
+                    log(`❌ Erro na API Mensagens: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro na requisição: ${error.message}`, 'error');
+            }
+        }
+
+        async function testarAPIPedidos() {
+            try {
+                const url = buildApiUrl('pedidos/totais-dia');
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log('✅ API Pedidos funcionando!', 'success');
+                    log(`Dados: ${JSON.stringify(data)}`, 'info');
+                } else {
+                    log(`❌ Erro na API Pedidos: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro na requisição: ${error.message}`, 'error');
+            }
+        }
+
+        // Verificar status inicial
+        window.onload = function() {
+            const clienteId = getClienteId();
+            const statusEl = document.getElementById('systemStatus');
+            
+            if (clienteId) {
+                statusEl.textContent = `Autenticado como: ${clienteId}`;
+                statusEl.parentElement.className = 'status success';
+            } else {
+                statusEl.textContent = 'Não autenticado';
+                statusEl.parentElement.className = 'status error';
+            }
+            
+            log('🚀 Página de teste carregada', 'info');
+        };
+    </script>
+</body>
+</html>

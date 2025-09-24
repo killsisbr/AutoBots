@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <title>Painel de Mensagens - Brutus Burger</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --glass: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --bg-dark: #0b0b0b;
+            --card-dark: #121212;
+            --text-muted: #9aa;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            min-height: 100vh;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .header {
+            padding: 24px 32px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 24px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 8px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.7);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .grid {
+            display: none;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .grid.show {
+            display: grid;
+        }
+        
+        .empty-state {
+            display: none;
+        }
+        
+        .empty-state.show {
+            display: block;
+        }
+
+        .card {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .card-subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            font-size: 16px;
+        }
+
+        .btn-edit {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .btn-delete {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+        }
+
+        .btn-icon:hover {
+            transform: scale(1.1);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .btn-close {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-close:hover {
+            transform: scale(1.1);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .status-inactive {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 12px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            z-index: 2000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast-success {
+            background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+        }
+
+        .toast-error {
+            background: linear-gradient(135deg, var(--error) 0%, #dc2626 100%);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>🤖 Painel de Mensagens</h1>
+            <div id="restaurant-info" style="margin-top:4px;font-size:12px;color:#ccc;"></div>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="openModal('mensagem')">
+                ➕ Nova Mensagem
+            </button>
+            <button class="btn btn-primary" onclick="openModal('gatilho')">
+                🎯 Novo Gatilho
+            </button>
+            <a href="/pedidos" class="btn btn-secondary">
+                📊 Dashboard
+            </a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('mensagens')">
+                💬 Mensagens
+            </button>
+            <button class="tab" onclick="switchTab('gatilhos')">
+                🎯 Gatilhos
+            </button>
+        </div>
+
+        <div id="mensagens-tab" class="tab-content active">
+            <div id="mensagens-loading" class="loading">
+                <div class="spinner"></div>
+                Carregando mensagens...
+            </div>
+            <div id="mensagens-grid" class="grid"></div>
+            <div id="mensagens-empty" class="empty-state">
+                <div class="empty-state-icon">💬</div>
+                <h3>Nenhuma mensagem encontrada</h3>
+                <p>Crie sua primeira mensagem para começar!</p>
+            </div>
+        </div>
+
+        <div id="gatilhos-tab" class="tab-content">
+            <div id="gatilhos-loading" class="loading">
+                <div class="spinner"></div>
+                Carregando gatilhos...
+            </div>
+            <div id="gatilhos-grid" class="grid"></div>
+            <div id="gatilhos-empty" class="empty-state">
+                <div class="empty-state-icon">🎯</div>
+                <h3>Nenhum gatilho encontrado</h3>
+                <p>Crie seu primeiro gatilho para automatizar respostas!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Mensagens -->
+    <div id="modal-mensagem" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Nova Mensagem</h2>
+                <button class="btn-close" onclick="closeModal('mensagem')">✕</button>
+            </div>
+            <form id="form-mensagem">
+                <div class="form-group">
+                    <label class="form-label">Chave da Mensagem</label>
+                    <input type="text" id="mensagem-chave" class="form-input" placeholder="ex: boas_vindas" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Título</label>
+                    <input type="text" id="mensagem-titulo" class="form-input" placeholder="ex: Mensagem de Boas Vindas" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Conteúdo</label>
+                    <textarea id="mensagem-conteudo" class="form-input form-textarea" placeholder="Digite o conteúdo da mensagem..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tipo</label>
+                    <select id="mensagem-tipo" class="form-select">
+                        <option value="resposta">Resposta Automática</option>
+                        <option value="menu">Menu</option>
+                        <option value="ajuda">Ajuda</option>
+                        <option value="promocao">Promoção</option>
+                        <option value="informacao">Informação</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="mensagem-ativo" checked style="margin-right: 8px;">
+                        Mensagem Ativa
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('mensagem')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para Gatilhos -->
+    <div id="modal-gatilho" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Novo Gatilho</h2>
+                <button class="btn-close" onclick="closeModal('gatilho')">✕</button>
+            </div>
+            <form id="form-gatilho">
+                <div class="form-group">
+                    <label class="form-label">Palavra-chave</label>
+                    <input type="text" id="gatilho-palavra" class="form-input" placeholder="ex: oi, olá, cardápio" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Mensagem</label>
+                    <select id="gatilho-mensagem" class="form-select" required>
+                        <option value="">Selecione uma mensagem</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Categoria</label>
+                    <select id="gatilho-categoria" class="form-select">
+                        <option value="saudacao">Saudação</option>
+                        <option value="cardapio">Cardápio</option>
+                        <option value="pedido">Pedido</option>
+                        <option value="suporte">Suporte</option>
+                        <option value="geral">Geral</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('gatilho')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let mensagens = [];
+        let gatilhos = [];
+        let editingId = null;
+        let editingType = null;
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM carregado, iniciando aplicação...');
+            console.log('🔍 Verificando elementos DOM...');
+            
+            const grid = document.getElementById('mensagens-grid');
+            const empty = document.getElementById('mensagens-empty');
+            console.log('📋 Elementos encontrados:', { 
+                grid: !!grid, 
+                empty: !!empty,
+                gridDisplay: grid ? grid.style.display : 'N/A',
+                emptyDisplay: empty ? empty.style.display : 'N/A'
+            });
+            
+            loadMensagens();
+            loadGatilhos();
+            setupEventListeners();
+        });
+
+        // Event Listeners
+        function setupEventListeners() {
+            document.getElementById('form-mensagem').addEventListener('submit', handleMensagemSubmit);
+            document.getElementById('form-gatilho').addEventListener('submit', handleGatilhoSubmit);
+
+            // Socket events
+            socket.on('mensagem-atualizada', function(data) {
+                loadMensagens();
+                showToast('Mensagem atualizada!', 'success');
+            });
+
+            socket.on('gatilho-atualizado', function(data) {
+                loadGatilhos();
+                showToast('Gatilho atualizado!', 'success');
+            });
+        }
+
+        // Tab Management
+        function switchTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tab + '-tab').classList.add('active');
+
+            // Load data if needed
+            if (tab === 'mensagens' && mensagens.length === 0) {
+                loadMensagens();
+            } else if (tab === 'gatilhos' && gatilhos.length === 0) {
+                loadGatilhos();
+            }
+        }
+
+        // Modal Management
+        function openModal(type, id = null) {
+            editingId = id;
+            editingType = type;
+            
+            const modal = document.getElementById(`modal-${type}`);
+            const title = modal.querySelector('.modal-title');
+            
+            if (id) {
+                title.textContent = type === 'mensagem' ? 'Editar Mensagem' : 'Editar Gatilho';
+                if (type === 'mensagem') {
+                    fillMensagemForm(id);
+                } else {
+                    fillGatilhoForm(id);
+                }
+            } else {
+                title.textContent = type === 'mensagem' ? 'Nova Mensagem' : 'Novo Gatilho';
+                document.getElementById(`form-${type}`).reset();
+                // Marcar como ativo por padrão para novas mensagens
+                if (type === 'mensagem') {
+                    document.getElementById('mensagem-ativo').checked = true;
+                }
+            }
+            
+            modal.classList.add('active');
+            
+            // Load mensagens for gatilho select
+            if (type === 'gatilho') {
+                loadMensagensForSelect();
+            }
+        }
+
+        function closeModal(type) {
+            document.getElementById(`modal-${type}`).classList.remove('active');
+            editingId = null;
+            editingType = null;
+        }
+
+        // Sistema Multi-Tenant - Obter clienteId da sessão
+        async function getClienteId() {
+            try {
+                const response = await fetch('/api/auth/me');
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.id;
+                }
+            } catch (error) {
+                console.error('Erro ao obter clienteId:', error);
+            }
+            return null;
+        }
+
+        // Função auxiliar para construir URLs de API com clienteId
+        async function buildApiUrl(endpoint) {
+            const clienteId = await getClienteId();
+            if (!clienteId) {
+                throw new Error('Cliente não autenticado');
+            }
+            const separator = endpoint.includes('?') ? '&' : '?';
+            return `${endpoint}${separator}clienteId=${clienteId}`;
+        }
+
+        // Load Data
+        async function loadMensagens() {
+            console.log('🔄 Iniciando carregamento de mensagens...');
+            try {
+                showLoading('mensagens');
+                console.log('📡 Fazendo requisição para /api/mensagens');
+                const apiUrl = await buildApiUrl('/api/mensagens');
+                const response = await fetch(apiUrl);
+                console.log('📥 Resposta recebida:', response.status, response.statusText);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                mensagens = await response.json();
+                console.log('✅ Mensagens carregadas:', mensagens.length, 'itens');
+                renderMensagens();
+                console.log('🎨 Renderização concluída');
+            } catch (error) {
+                console.error('❌ Erro ao carregar mensagens:', error);
+                showToast('Erro ao carregar mensagens', 'error');
+            } finally {
+                hideLoading('mensagens');
+                console.log('🏁 Loading ocultado');
+            }
+        }
+
+        async function loadGatilhos() {
+            try {
+                showLoading('gatilhos');
+                const apiUrl = await buildApiUrl('/api/gatilhos');
+                const response = await fetch(apiUrl);
+                gatilhos = await response.json();
+                renderGatilhos();
+            } catch (error) {
+                console.error('Erro ao carregar gatilhos:', error);
+                showToast('Erro ao carregar gatilhos', 'error');
+            } finally {
+                hideLoading('gatilhos');
+            }
+        }
+
+        async function loadMensagensForSelect() {
+            try {
+                const response = await fetch('/api/mensagens');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const mensagens = await response.json();
+                const select = document.getElementById('gatilho-mensagem');
+                
+                if (!select) {
+                    console.error('Select gatilho-mensagem não encontrado!');
+                    return;
+                }
+                
+                select.innerHTML = '<option value="">Selecione uma mensagem</option>';
+                mensagens.forEach(msg => {
+                    const option = document.createElement('option');
+                    option.value = msg.id;
+                    option.textContent = `${msg.titulo} (${msg.chave})`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Erro ao carregar mensagens para select:', error);
+            }
+        }
+
+        // Render Functions
+        function renderMensagens() {
+            console.log('🎨 Iniciando renderização de mensagens...');
+            const grid = document.getElementById('mensagens-grid');
+            const empty = document.getElementById('mensagens-empty');
+            
+            console.log('📋 Elementos encontrados:', { grid: !!grid, empty: !!empty });
+            
+            if (!grid || !empty) {
+                console.error('❌ Elementos mensagens-grid ou mensagens-empty não encontrados');
+                return;
+            }
+            
+            console.log('📊 Quantidade de mensagens:', mensagens.length);
+            
+            if (mensagens.length === 0) {
+                console.log('📭 Nenhuma mensagem, mostrando estado vazio');
+                grid.classList.remove('show');
+                grid.style.display = 'none';
+                empty.classList.add('show');
+                empty.style.display = 'block';
+                return;
+            }
+            
+            console.log('📝 Mensagens encontradas, renderizando grid');
+            empty.classList.remove('show');
+            empty.style.display = 'none';
+            grid.classList.add('show');
+            grid.style.display = 'grid';
+            
+            grid.innerHTML = mensagens.map(msg => `
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">${msg.titulo}</div>
+                            <div class="card-subtitle">${msg.chave}</div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn-icon btn-edit" onclick="openModal('mensagem', ${msg.id})" title="Editar">
+                                ✏️
+                            </button>
+                            <button class="btn-icon btn-delete" onclick="deleteMensagem(${msg.id})" title="Excluir">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <span class="status-badge ${msg.ativo ? 'status-active' : 'status-inactive'}">
+                            ${msg.ativo ? 'Ativo' : 'Inativo'}
+                        </span>
+                        <span class="status-badge status-active">${msg.tipo}</span>
+                    </div>
+                    <div style="color: rgba(255, 255, 255, 0.8); font-size: 14px; line-height: 1.5;">
+                        ${msg.conteudo.length > 150 ? msg.conteudo.substring(0, 150) + '...' : msg.conteudo}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderGatilhos() {
+            const grid = document.getElementById('gatilhos-grid');
+            const empty = document.getElementById('gatilhos-empty');
+            
+            if (!grid || !empty) {
+                console.error('Elementos gatilhos-grid ou gatilhos-empty não encontrados');
+                return;
+            }
+            
+            if (gatilhos.length === 0) {
+                grid.classList.remove('show');
+                empty.classList.add('show');
+                return;
+            }
+            
+            empty.classList.remove('show');
+            grid.classList.add('show');
+            
+            grid.innerHTML = gatilhos.map(gatilho => `
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">${gatilho.palavra}</div>
+                            <div class="card-subtitle">${gatilho.categoria || 'Geral'}</div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn-icon btn-edit" onclick="openModal('gatilho', ${gatilho.id})" title="Editar">
+                                ✏️
+                            </button>
+                            <button class="btn-icon btn-delete" onclick="deleteGatilho(${gatilho.id})" title="Excluir">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <span class="status-badge ${gatilho.ativo ? 'status-active' : 'status-inactive'}">
+                            ${gatilho.ativo ? 'Ativo' : 'Inativo'}
+                        </span>
+                    </div>
+                    <div style="color: rgba(255, 255, 255, 0.8); font-size: 14px;">
+                        <strong>Mensagem:</strong> ${gatilho.mensagem_titulo || 'N/A'}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Form Handlers
+        async function handleMensagemSubmit(e) {
+            e.preventDefault();
+            
+            const data = {
+                chave: document.getElementById('mensagem-chave').value,
+                titulo: document.getElementById('mensagem-titulo').value,
+                conteudo: document.getElementById('mensagem-conteudo').value,
+                tipo: document.getElementById('mensagem-tipo').value,
+                ativo: document.getElementById('mensagem-ativo').checked
+            };
+            
+            try {
+                const baseUrl = editingId ? `/api/mensagens/${editingId}` : '/api/mensagens';
+                const url = await buildApiUrl(baseUrl);
+                const method = editingId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    closeModal('mensagem');
+                    loadMensagens();
+                    showToast(editingId ? 'Mensagem atualizada!' : 'Mensagem criada!', 'success');
+                } else {
+                    throw new Error('Erro ao salvar mensagem');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                showToast('Erro ao salvar mensagem', 'error');
+            }
+        }
+
+        async function handleGatilhoSubmit(e) {
+            e.preventDefault();
+            
+            const data = {
+                palavra: document.getElementById('gatilho-palavra').value,
+                mensagem_id: document.getElementById('gatilho-mensagem').value,
+                categoria: document.getElementById('gatilho-categoria').value
+            };
+            
+            try {
+                const baseUrl = editingId ? `/api/gatilhos/${editingId}` : '/api/gatilhos';
+                const url = await buildApiUrl(baseUrl);
+                const method = editingId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    closeModal('gatilho');
+                    loadGatilhos();
+                    showToast(editingId ? 'Gatilho atualizado!' : 'Gatilho criado!', 'success');
+                } else {
+                    throw new Error('Erro ao salvar gatilho');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                showToast('Erro ao salvar gatilho', 'error');
+            }
+        }
+
+        // Fill Forms for Editing
+        function fillMensagemForm(id) {
+            const mensagem = mensagens.find(m => m.id === id);
+            if (mensagem) {
+                document.getElementById('mensagem-chave').value = mensagem.chave;
+                document.getElementById('mensagem-titulo').value = mensagem.titulo;
+                document.getElementById('mensagem-conteudo').value = mensagem.conteudo;
+                document.getElementById('mensagem-tipo').value = mensagem.tipo || 'resposta';
+                document.getElementById('mensagem-ativo').checked = mensagem.ativo !== 0;
+            }
+        }
+
+        function fillGatilhoForm(id) {
+            const gatilho = gatilhos.find(g => g.id === id);
+            if (gatilho) {
+                document.getElementById('gatilho-palavra').value = gatilho.palavra;
+                document.getElementById('gatilho-mensagem').value = gatilho.mensagem_id;
+                document.getElementById('gatilho-categoria').value = gatilho.categoria || 'geral';
+            }
+        }
+
+        // Delete Functions
+        async function deleteMensagem(id) {
+            if (!confirm('Tem certeza que deseja excluir esta mensagem?')) return;
+            
+            try {
+                const url = await buildApiUrl(`/api/mensagens/${id}`);
+                const response = await fetch(url, { method: 'DELETE' });
+                if (response.ok) {
+                    loadMensagens();
+                    showToast('Mensagem excluída!', 'success');
+                } else {
+                    throw new Error('Erro ao excluir mensagem');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                showToast('Erro ao excluir mensagem', 'error');
+            }
+        }
+
+        async function deleteGatilho(id) {
+            if (!confirm('Tem certeza que deseja excluir este gatilho?')) return;
+            
+            try {
+                const url = await buildApiUrl(`/api/gatilhos/${id}`);
+                const response = await fetch(url, { method: 'DELETE' });
+                if (response.ok) {
+                    loadGatilhos();
+                    showToast('Gatilho excluído!', 'success');
+                } else {
+                    throw new Error('Erro ao excluir gatilho');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                showToast('Erro ao excluir gatilho', 'error');
+            }
+        }
+
+        // Utility Functions
+        function showLoading(type) {
+            document.getElementById(`${type}-loading`).style.display = 'flex';
+            document.getElementById(`${type}-grid`).style.display = 'none';
+            document.getElementById(`${type}-empty`).style.display = 'none';
+        }
+
+        function hideLoading(type) {
+            document.getElementById(`${type}-loading`).style.display = 'none';
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 100);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
+        }
+    </script>
+    
+    <!-- Script de informações do restaurante -->
+    <script src="js/restaurant-info.js"></script>
+</body>
+</html>

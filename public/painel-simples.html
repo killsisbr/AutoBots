@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <title>Painel Simples - Mensagens</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1a1a2e;
+            color: white;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .card {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #0f3460;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛠️ Painel Simples - Mensagens</h1>
+        
+        <div id="loading" class="loading">
+            Carregando mensagens...
+        </div>
+        
+        <div id="content" class="hidden">
+            <h2>Mensagens Carregadas</h2>
+            <div id="grid" class="grid"></div>
+        </div>
+        
+        <div id="error" class="hidden">
+            <h2>❌ Erro ao carregar</h2>
+            <p id="error-message"></p>
+        </div>
+    </div>
+
+    <script>
+        console.log('🚀 Script iniciado');
+        
+        let mensagens = [];
+        
+        // Sistema Multi-Tenant - Obter clienteId da sessão
+        async function getClienteId() {
+            try {
+                const response = await fetch('/api/auth/me');
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.id;
+                }
+            } catch (error) {
+                console.error('Erro ao obter clienteId:', error);
+            }
+            return null;
+        }
+
+        // Função auxiliar para construir URLs de API com clienteId
+        async function buildApiUrl(endpoint) {
+            const clienteId = await getClienteId();
+            if (!clienteId) {
+                throw new Error('Cliente não autenticado');
+            }
+            const separator = endpoint.includes('?') ? '&' : '?';
+            return `${endpoint}${separator}clienteId=${clienteId}`;
+        }
+
+        async function carregarMensagens() {
+            console.log('📡 Iniciando carregamento...');
+            
+            try {
+                const apiUrl = await buildApiUrl('/api/mensagens');
+                const response = await fetch(apiUrl);
+                console.log('📥 Resposta recebida:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                mensagens = await response.json();
+                console.log('✅ Mensagens carregadas:', mensagens.length);
+                
+                mostrarMensagens();
+                
+            } catch (error) {
+                console.error('❌ Erro:', error);
+                mostrarErro(error.message);
+            }
+        }
+        
+        function mostrarMensagens() {
+            console.log('🎨 Renderizando mensagens...');
+            
+            const loading = document.getElementById('loading');
+            const content = document.getElementById('content');
+            const grid = document.getElementById('grid');
+            
+            loading.classList.add('hidden');
+            content.classList.remove('hidden');
+            
+            if (mensagens.length === 0) {
+                grid.innerHTML = '<p>Nenhuma mensagem encontrada</p>';
+                return;
+            }
+            
+            grid.innerHTML = mensagens.map(msg => `
+                <div class="card">
+                    <h3>${msg.titulo}</h3>
+                    <p><strong>Chave:</strong> ${msg.chave}</p>
+                    <p><strong>Tipo:</strong> ${msg.tipo || 'N/A'}</p>
+                    <p><strong>Status:</strong> ${msg.ativo ? 'Ativo' : 'Inativo'}</p>
+                    <div style="margin-top: 10px; font-size: 14px; opacity: 0.8;">
+                        ${msg.conteudo.substring(0, 100)}${msg.conteudo.length > 100 ? '...' : ''}
+                    </div>
+                </div>
+            `).join('');
+            
+            console.log('✅ Renderização concluída');
+        }
+        
+        function mostrarErro(message) {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const errorMessage = document.getElementById('error-message');
+            
+            loading.classList.add('hidden');
+            error.classList.remove('hidden');
+            errorMessage.textContent = message;
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM carregado, iniciando...');
+            carregarMensagens();
+        });
+    </script>
+</body>
+</html>

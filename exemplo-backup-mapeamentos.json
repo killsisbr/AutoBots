@@ -1,0 +1,68 @@
+{
+  "restaurantId": "brutus-burger",
+  "timestamp": "2025-09-23T19:53:00.000Z",
+  "version": "1.0",
+  "type": "mapeamentos",
+  "mappings": [
+    {
+      "item_id": 1,
+      "palavra_chave": "big"
+    },
+    {
+      "item_id": 1,
+      "palavra_chave": "brutus"
+    },
+    {
+      "item_id": 1,
+      "palavra_chave": "hamburguer"
+    },
+    {
+      "item_id": 1,
+      "palavra_chave": "burger"
+    },
+    {
+      "item_id": 2,
+      "palavra_chave": "brutal"
+    },
+    {
+      "item_id": 2,
+      "palavra_chave": "lanche"
+    },
+    {
+      "item_id": 3,
+      "palavra_chave": "x-burger"
+    },
+    {
+      "item_id": 3,
+      "palavra_chave": "xburger"
+    },
+    {
+      "item_id": 4,
+      "palavra_chave": "coca"
+    },
+    {
+      "item_id": 4,
+      "palavra_chave": "refrigerante"
+    },
+    {
+      "item_id": 4,
+      "palavra_chave": "refri"
+    },
+    {
+      "item_id": 5,
+      "palavra_chave": "agua"
+    },
+    {
+      "item_id": 5,
+      "palavra_chave": "água"
+    },
+    {
+      "item_id": 6,
+      "palavra_chave": "batata"
+    },
+    {
+      "item_id": 6,
+      "palavra_chave": "frita"
+    }
+  ]
+}

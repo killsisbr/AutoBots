@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Administrativo - Restaurantes</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        :root {
+            --cor-primaria: #3498db;
+            --cor-secundaria: #2c3e50;
+            --cor-fundo: #1a1a1a;
+            --cor-texto: #ffffff;
+            --cor-card: #2c2c2c;
+            --cor-sucesso: #27ae60;
+            --cor-aviso: #f39c12;
+            --cor-erro: #e74c3c;
+            --cor-info: #3498db;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--cor-fundo);
+            color: var(--cor-texto);
+            min-height: 100vh;
+        }
+
+        .admin-header {
+            background: linear-gradient(135deg, var(--cor-primaria), var(--cor-secundaria));
+            padding: 1.5rem 1rem;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .admin-title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .admin-subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin: 0.5rem 0 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--cor-card);
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--cor-primaria);
+        }
+
+        .stat-card:hover {
+            border-color: var(--cor-primaria);
+            transform: translateY(-5px);
+        }
+
+        .stat-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--cor-primaria);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #bdc3c7;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        .actions-bar {
+            background: var(--cor-card);
+            padding: 1.5rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--cor-primaria);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--cor-sucesso);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--cor-aviso);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--cor-erro);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .restaurants-container {
+            background: var(--cor-card);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+
+        .restaurants-header {
+            background: var(--cor-primaria);
+            padding: 1.5rem;
+            color: white;
+            font-weight: bold;
+            font-size: 1.3rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .search-bar {
+            padding: 0.8rem;
+            border: 2px solid #34495e;
+            border-radius: 8px;
+            background: #1a1a1a;
+            color: var(--cor-texto);
+            font-size: 1rem;
+            width: 300px;
+        }
+
+        .search-bar:focus {
+            outline: none;
+            border-color: var(--cor-primaria);
+        }
+
+        .restaurants-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .restaurant-item {
+            padding: 1.5rem;
+            border-bottom: 1px solid #34495e;
+            transition: background 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .restaurant-item:hover {
+            background: rgba(52, 152, 219, 0.1);
+        }
+
+        .restaurant-item:last-child {
+            border-bottom: none;
+        }
+
+        .restaurant-info {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .restaurant-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--cor-primaria);
+            margin-bottom: 0.5rem;
+        }
+
+        .restaurant-details {
+            color: #bdc3c7;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .restaurant-status {
+            padding: 0.4rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            display: inline-block;
+        }
+
+        .status-ativo {
+            background: var(--cor-sucesso);
+            color: white;
+        }
+
+        .status-inativo {
+            background: var(--cor-erro);
+            color: white;
+        }
+
+        .status-manutencao {
+            background: var(--cor-aviso);
+            color: white;
+        }
+
+        .restaurant-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+        }
+
+        .modal-content {
+            background-color: var(--cor-card);
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #34495e;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--cor-primaria);
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .close:hover {
+            color: var(--cor-erro);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #bdc3c7;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid #34495e;
+            border-radius: 8px;
+            background: #1a1a1a;
+            color: var(--cor-texto);
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--cor-primaria);
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .color-input {
+            width: 60px;
+            height: 40px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            font-size: 1.2rem;
+            color: #7f8c8d;
+        }
+
+        .error {
+            text-align: center;
+            padding: 3rem;
+            color: var(--cor-erro);
+            font-size: 1.2rem;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 3rem;
+            color: #7f8c8d;
+            font-size: 1.2rem;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .actions-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .restaurant-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .restaurant-actions {
+                width: 100%;
+                justify-content: flex-end;
+            }
+            
+            .search-bar {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-header">
+        <h1 class="admin-title">🏪 Painel Administrativo</h1>
+        <p class="admin-subtitle">Gerenciamento de Restaurantes</p>
+    </div>
+
+    <div class="container">
+        <div class="dashboard-grid" id="dashboard-grid">
+            <div class="stat-card">
+                <div class="stat-icon">🏪</div>
+                <div class="stat-number" id="total-restaurants">0</div>
+                <div class="stat-label">Total de Restaurantes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-number" id="active-restaurants">0</div>
+                <div class="stat-label">Ativos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-number" id="total-orders">0</div>
+                <div class="stat-label">Pedidos Hoje</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">💰</div>
+                <div class="stat-number" id="total-revenue">R$ 0</div>
+                <div class="stat-label">Faturamento Hoje</div>
+            </div>
+        </div>
+
+        <div class="actions-bar">
+            <input type="text" id="search-restaurants" class="search-bar" placeholder="🔍 Buscar restaurantes...">
+            <div>
+                <button class="btn btn-success" onclick="adminApp.openModal('add')">
+                    ➕ Novo Restaurante
+                </button>
+                <button class="btn btn-primary" onclick="adminApp.loadRestaurants()">
+                    🔄 Atualizar
+                </button>
+            </div>
+        </div>
+
+        <div class="restaurants-container">
+            <div class="restaurants-header">
+                <span>📋 Lista de Restaurantes</span>
+                <span id="restaurants-count">0 restaurantes</span>
+            </div>
+            <div class="restaurants-list" id="restaurants-list">
+                <div class="loading">
+                    <p>🔄 Carregando restaurantes...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para adicionar/editar restaurante -->
+    <div id="restaurant-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modal-title">Novo Restaurante</h2>
+                <span class="close" onclick="adminApp.closeModal()">&times;</span>
+            </div>
+            <form id="restaurant-form">
+                <div class="form-group">
+                    <label class="form-label">Nome do Restaurante:</label>
+                    <input type="text" id="restaurant-name" class="form-input" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">ID único (usado na URL):</label>
+                    <input type="text" id="restaurant-id" class="form-input" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Descrição:</label>
+                    <textarea id="restaurant-description" class="form-input form-textarea"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Telefone:</label>
+                    <input type="tel" id="restaurant-phone" class="form-input">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Endereço:</label>
+                    <textarea id="restaurant-address" class="form-input form-textarea"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Cor Primária:</label>
+                    <input type="color" id="restaurant-primary-color" class="color-input" value="#ff6b35">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Cor Secundária:</label>
+                    <input type="color" id="restaurant-secondary-color" class="color-input" value="#2c3e50">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Status:</label>
+                    <select id="restaurant-status" class="form-input">
+                        <option value="ativo">Ativo</option>
+                        <option value="inativo">Inativo</option>
+                        <option value="manutencao">Manutenção</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+                    <button type="button" class="btn btn-warning" onclick="adminApp.closeModal()">
+                        ❌ Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        💾 Salvar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        class AdminRestaurantes {
+            constructor() {
+                this.restaurants = [];
+                this.filteredRestaurants = [];
+                this.currentEditingId = null;
+                this.init();
+            }
+
+            async init() {
+                try {
+                    await this.loadRestaurants();
+                    this.setupEventListeners();
+                    this.updateDashboard();
+                } catch (error) {
+                    console.error('Erro ao inicializar admin:', error);
+                    this.showError('Erro ao carregar dados. Tente novamente.');
+                }
+            }
+
+            setupEventListeners() {
+                document.getElementById('search-restaurants').addEventListener('input', (e) => {
+                    this.filterRestaurants(e.target.value);
+                });
+
+                document.getElementById('restaurant-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.saveRestaurant();
+                });
+
+                // Gerar ID automaticamente baseado no nome
+                document.getElementById('restaurant-name').addEventListener('input', (e) => {
+                    if (!this.currentEditingId) {
+                        const id = this.generateId(e.target.value);
+                        document.getElementById('restaurant-id').value = id;
+                    }
+                });
+            }
+
+            generateId(name) {
+                return name.toLowerCase()
+                    .replace(/[^a-z0-9\s]/g, '')
+                    .replace(/\s+/g, '-')
+                    .substring(0, 30);
+            }
+
+            async loadRestaurants() {
+                try {
+                    const response = await fetch('/api/restaurants');
+                    if (response.ok) {
+                        this.restaurants = await response.json();
+                    } else {
+                        // Dados de exemplo se a API não estiver disponível
+                        this.restaurants = [
+                            {
+                                id: 'brutus-burger',
+                                nome: 'Brutus Burger',
+                                descricao: 'Os melhores hambúrgueres da cidade',
+                                telefone: '(11) 99999-9999',
+                                endereco: 'Rua das Flores, 123',
+                                cores: { primaria: '#ff6b35', secundaria: '#2c3e50' },
+                                status: 'ativo',
+                                data_criacao: new Date().toISOString()
+                            }
+                        ];
+                    }
+                    this.filteredRestaurants = [...this.restaurants];
+                    this.renderRestaurants();
+                } catch (error) {
+                    console.error('Erro ao carregar restaurantes:', error);
+                    this.showError('Erro ao carregar restaurantes.');
+                }
+            }
+
+            filterRestaurants(searchTerm) {
+                const term = searchTerm.toLowerCase();
+                this.filteredRestaurants = this.restaurants.filter(restaurant => 
+                    restaurant.nome.toLowerCase().includes(term) ||
+                    restaurant.id.toLowerCase().includes(term) ||
+                    restaurant.descricao?.toLowerCase().includes(term)
+                );
+                this.renderRestaurants();
+            }
+
+            renderRestaurants() {
+                const restaurantsList = document.getElementById('restaurants-list');
+                const restaurantsCount = document.getElementById('restaurants-count');
+                
+                restaurantsCount.textContent = `${this.filteredRestaurants.length} restaurantes`;
+
+                if (this.filteredRestaurants.length === 0) {
+                    restaurantsList.innerHTML = '<div class="empty">🏪 Nenhum restaurante encontrado.</div>';
+                    return;
+                }
+
+                const html = this.filteredRestaurants.map(restaurant => this.renderRestaurant(restaurant)).join('');
+                restaurantsList.innerHTML = html;
+            }
+
+            renderRestaurant(restaurant) {
+                const statusClass = `status-${restaurant.status}`;
+                const statusLabel = {
+                    'ativo': '✅ Ativo',
+                    'inativo': '❌ Inativo',
+                    'manutencao': '🔧 Manutenção'
+                }[restaurant.status] || '❓ Desconhecido';
+
+                return `
+                    <div class="restaurant-item">
+                        <div class="restaurant-info">
+                            <div class="restaurant-status ${statusClass}">${statusLabel}</div>
+                            <div class="restaurant-name">${restaurant.nome}</div>
+                            <div class="restaurant-details">
+                                <strong>ID:</strong> ${restaurant.id}<br>
+                                <strong>Telefone:</strong> ${restaurant.telefone || 'Não informado'}<br>
+                                <strong>Criado em:</strong> ${new Date(restaurant.data_criacao).toLocaleDateString('pt-BR')}
+                            </div>
+                        </div>
+                        <div class="restaurant-actions">
+                            <a href="/r/${restaurant.id}" target="_blank" class="btn btn-primary btn-small">
+                                👁️ Ver Site
+                            </a>
+                            <button class="btn btn-warning btn-small" onclick="adminApp.editRestaurant('${restaurant.id}')">
+                                ✏️ Editar
+                            </button>
+                            <button class="btn btn-danger btn-small" onclick="adminApp.deleteRestaurant('${restaurant.id}')">
+                                🗑️ Excluir
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            updateDashboard() {
+                const total = this.restaurants.length;
+                const active = this.restaurants.filter(r => r.status === 'ativo').length;
+                
+                document.getElementById('total-restaurants').textContent = total;
+                document.getElementById('active-restaurants').textContent = active;
+                document.getElementById('total-orders').textContent = Math.floor(Math.random() * 50);
+                document.getElementById('total-revenue').textContent = `R$ ${(Math.random() * 5000).toFixed(2)}`;
+            }
+
+            openModal(mode, restaurantId = null) {
+                this.currentEditingId = restaurantId;
+                const modal = document.getElementById('restaurant-modal');
+                const title = document.getElementById('modal-title');
+                
+                if (mode === 'add') {
+                    title.textContent = 'Novo Restaurante';
+                    this.clearForm();
+                } else if (mode === 'edit' && restaurantId) {
+                    title.textContent = 'Editar Restaurante';
+                    this.populateForm(restaurantId);
+                }
+                
+                modal.style.display = 'block';
+            }
+
+            closeModal() {
+                document.getElementById('restaurant-modal').style.display = 'none';
+                this.currentEditingId = null;
+                this.clearForm();
+            }
+
+            clearForm() {
+                document.getElementById('restaurant-form').reset();
+                document.getElementById('restaurant-primary-color').value = '#ff6b35';
+                document.getElementById('restaurant-secondary-color').value = '#2c3e50';
+            }
+
+            populateForm(restaurantId) {
+                const restaurant = this.restaurants.find(r => r.id === restaurantId);
+                if (!restaurant) return;
+
+                document.getElementById('restaurant-name').value = restaurant.nome;
+                document.getElementById('restaurant-id').value = restaurant.id;
+                document.getElementById('restaurant-description').value = restaurant.descricao || '';
+                document.getElementById('restaurant-phone').value = restaurant.telefone || '';
+                document.getElementById('restaurant-address').value = restaurant.endereco || '';
+                document.getElementById('restaurant-primary-color').value = restaurant.cores?.primaria || '#ff6b35';
+                document.getElementById('restaurant-secondary-color').value = restaurant.cores?.secundaria || '#2c3e50';
+                document.getElementById('restaurant-status').value = restaurant.status;
+            }
+
+            async saveRestaurant() {
+                const formData = {
+                    nome: document.getElementById('restaurant-name').value,
+                    id: document.getElementById('restaurant-id').value,
+                    descricao: document.getElementById('restaurant-description').value,
+                    telefone: document.getElementById('restaurant-phone').value,
+                    endereco: document.getElementById('restaurant-address').value,
+                    cores: {
+                        primaria: document.getElementById('restaurant-primary-color').value,
+                        secundaria: document.getElementById('restaurant-secondary-color').value
+                    },
+                    status: document.getElementById('restaurant-status').value
+                };
+
+                try {
+                    let response;
+                    if (this.currentEditingId) {
+                        response = await fetch(`/api/restaurants/${this.currentEditingId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(formData)
+                        });
+                    } else {
+                        response = await fetch('/api/restaurants', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(formData)
+                        });
+                    }
+
+                    if (response.ok) {
+                        await this.loadRestaurants();
+                        this.closeModal();
+                        this.updateDashboard();
+                        alert('Restaurante salvo com sucesso!');
+                    } else {
+                        alert('Erro ao salvar restaurante. Tente novamente.');
+                    }
+                } catch (error) {
+                    console.error('Erro ao salvar:', error);
+                    alert('Erro ao salvar restaurante. Tente novamente.');
+                }
+            }
+
+            editRestaurant(restaurantId) {
+                this.openModal('edit', restaurantId);
+            }
+
+            async deleteRestaurant(restaurantId) {
+                if (!confirm('Tem certeza que deseja excluir este restaurante?')) return;
+
+                try {
+                    const response = await fetch(`/api/restaurants/${restaurantId}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (response.ok) {
+                        await this.loadRestaurants();
+                        this.updateDashboard();
+                        alert('Restaurante excluído com sucesso!');
+                    } else {
+                        alert('Erro ao excluir restaurante. Tente novamente.');
+                    }
+                } catch (error) {
+                    console.error('Erro ao excluir:', error);
+                    alert('Erro ao excluir restaurante. Tente novamente.');
+                }
+            }
+
+            showError(message) {
+                document.getElementById('restaurants-list').innerHTML = `<div class="error">${message}</div>`;
+            }
+        }
+
+        // Instância global
+        let adminApp;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            adminApp = new AdminRestaurantes();
+        });
+
+        // Fechar modal clicando fora
+        window.onclick = function(event) {
+            const modal = document.getElementById('restaurant-modal');
+            if (event.target === modal) {
+                adminApp.closeModal();
+            }
+        }
+    </script>
+</body>
+</html>

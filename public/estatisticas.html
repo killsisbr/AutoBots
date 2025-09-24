@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estatísticas - Brutus Burger</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .stats-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--spacing-xl);
+            display: grid;
+            gap: var(--spacing-lg);
+        }
+
+        .period-selector {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .period-buttons {
+            display: flex;
+            gap: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+
+        .period-btn {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: var(--spacing-sm) var(--spacing-lg);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .period-btn:hover {
+            background: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .period-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-lg);
+        }
+
+        .stat-card {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: var(--spacing-lg);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .stat-title {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            color: white;
+        }
+
+        .stat-value {
+            font-size: var(--font-size-3xl);
+            font-weight: 700;
+            color: white;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .stat-subtitle {
+            color: var(--muted);
+            font-size: var(--font-size-sm);
+        }
+
+        .chart-container {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: var(--spacing-lg);
+            margin-top: var(--spacing-lg);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+        }
+
+        .top-items {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: var(--spacing-lg);
+            margin-top: var(--spacing-lg);
+        }
+
+        .item-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-md);
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .item-name {
+            font-weight: 500;
+            color: white;
+        }
+
+        .item-stats {
+            display: flex;
+            gap: var(--spacing-lg);
+            color: var(--muted);
+            font-size: var(--font-size-sm);
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-2xl);
+            color: var(--muted);
+        }
+
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--accent);
+            animation: spin 1s ease-in-out infinite;
+            margin-right: var(--spacing-md);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: var(--spacing-lg);
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .refresh-btn {
+            background: var(--success);
+            border: none;
+            color: white;
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-left: auto;
+            display: block;
+        }
+
+        .refresh-btn:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .stats-container {
+                padding: var(--spacing-md);
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .period-buttons {
+                justify-content: center;
+            }
+            
+            .chart-wrapper {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1>📊 Estatísticas do Restaurante</h1>
+            <div id="restaurant-info" style="margin-top:4px;font-size:12px;color:#ccc;"></div>
+        </div>
+    </header>
+
+    <div class="stats-container">
+        <!-- Seletor de Período -->
+        <div class="period-selector">
+            <h3 style="margin-bottom: var(--spacing-md); color: white;">Período de Análise</h3>
+            <div class="period-buttons">
+                <button class="period-btn active" data-period="hoje">Hoje</button>
+                <button class="period-btn" data-period="semana">Esta Semana</button>
+                <button class="period-btn" data-period="mes">Este Mês</button>
+                <button class="period-btn" data-period="todos">Todos</button>
+                <button class="refresh-btn" onclick="carregarEstatisticas()">🔄 Atualizar</button>
+            </div>
+        </div>
+
+        <!-- Cards de Estatísticas Principais -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                Carregando estatísticas...
+            </div>
+        </div>
+
+        <!-- Gráfico de Vendas -->
+        <div class="chart-container">
+            <h3 style="margin-bottom: var(--spacing-lg); color: white;">📈 Análise de Vendas vs Entregas</h3>
+            <div class="chart-wrapper">
+                <canvas id="vendasChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Top Itens Vendidos -->
+        <div class="top-items">
+            <h3 style="margin-bottom: var(--spacing-lg); color: white;">🏆 Lanches Mais Vendidos</h3>
+            <div class="item-list" id="topItems">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    Carregando itens...
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+    <script>
+        let currentPeriod = 'hoje';
+        let vendasChart = null;
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            setupPeriodButtons();
+            carregarEstatisticas();
+        });
+
+        function setupPeriodButtons() {
+            const buttons = document.querySelectorAll('.period-btn');
+            buttons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    buttons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentPeriod = this.dataset.period;
+                    carregarEstatisticas();
+                });
+            });
+        }
+
+        async function carregarEstatisticas() {
+            try {
+                showLoading();
+                
+                // Carregar dados das APIs
+                const [vendasResponse, entregasResponse] = await Promise.all([
+                    fetch(`/api/estatisticas/vendas?periodo=${currentPeriod}`),
+                    fetch(`/api/estatisticas/entregas?periodo=${currentPeriod}`)
+                ]);
+
+                const vendasData = await vendasResponse.json();
+                const entregasData = await entregasResponse.json();
+
+                if (vendasData.ok && entregasData.ok) {
+                    renderStats(vendasData.estatisticas, entregasData.analise);
+                    renderCharts(vendasData.estatisticas, entregasData.analise);
+                    renderTopItems(vendasData.estatisticas.topItens);
+                } else {
+                    showError('Erro ao carregar dados das APIs');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas:', error);
+                showError('Erro de conexão com o servidor');
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('statsGrid').innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    Carregando estatísticas...
+                </div>
+            `;
+        }
+
+        function showError(message) {
+            document.getElementById('statsGrid').innerHTML = `
+                <div class="error">
+                    ❌ ${message}
+                    <br><br>
+                    <button class="refresh-btn" onclick="carregarEstatisticas()">Tentar Novamente</button>
+                </div>
+            `;
+        }
+
+        function renderStats(vendas, entregas) {
+            const statsGrid = document.getElementById('statsGrid');
+            
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #10b981, #059669);">💰</div>
+                        <div class="stat-title">Receita Total</div>
+                    </div>
+                    <div class="stat-value">R$ ${vendas.receitaTotal.toFixed(2)}</div>
+                    <div class="stat-subtitle">${vendas.totalVendas} pedidos realizados</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">🍔</div>
+                        <div class="stat-title">Itens Vendidos</div>
+                    </div>
+                    <div class="stat-value">${vendas.totalItens}</div>
+                    <div class="stat-subtitle">Ticket médio: R$ ${vendas.ticketMedio.toFixed(2)}</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">🚚</div>
+                        <div class="stat-title">Entregas</div>
+                    </div>
+                    <div class="stat-value">${entregas.totalEntregas}</div>
+                    <div class="stat-subtitle">${entregas.percentualEntregas}% dos pedidos</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">🏪</div>
+                        <div class="stat-title">Retiradas</div>
+                    </div>
+                    <div class="stat-value">${entregas.totalRetiradas}</div>
+                    <div class="stat-subtitle">${100 - entregas.percentualEntregas}% dos pedidos</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626);">📊</div>
+                        <div class="stat-title">Receita Entregas</div>
+                    </div>
+                    <div class="stat-value">R$ ${entregas.receitaEntregas.toFixed(2)}</div>
+                    <div class="stat-subtitle">Ticket médio: R$ ${entregas.ticketMedioEntregas.toFixed(2)}</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">🏠</div>
+                        <div class="stat-title">Receita Retiradas</div>
+                    </div>
+                    <div class="stat-value">R$ ${entregas.receitaRetiradas.toFixed(2)}</div>
+                    <div class="stat-subtitle">Ticket médio: R$ ${entregas.ticketMedioRetiradas.toFixed(2)}</div>
+                </div>
+            `;
+        }
+
+        function renderCharts(vendas, entregas) {
+            // Gráfico de Vendas vs Entregas
+            const ctx1 = document.getElementById('vendasChart').getContext('2d');
+            
+            if (vendasChart) {
+                vendasChart.destroy();
+            }
+
+            vendasChart = new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Entregas', 'Retiradas'],
+                    datasets: [{
+                        data: [entregas.totalEntregas, entregas.totalRetiradas],
+                        backgroundColor: [
+                            'rgba(139, 92, 246, 0.8)',
+                            'rgba(245, 158, 11, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(139, 92, 246, 1)',
+                            'rgba(245, 158, 11, 1)'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'white',
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+
+        }
+
+        function renderTopItems(topItens) {
+            const container = document.getElementById('topItems');
+            
+            if (!topItens || topItens.length === 0) {
+                container.innerHTML = '<div class="stat-subtitle">Nenhum item encontrado para este período</div>';
+                return;
+            }
+
+            container.innerHTML = topItens.map((item, index) => `
+                <div class="item-row">
+                    <div class="item-name">
+                        <span style="color: var(--accent); font-weight: bold;">#${index + 1}</span>
+                        ${item.nome}
+                    </div>
+                    <div class="item-stats">
+                        <span>Qtd: ${item.quantidade}</span>
+                        <span>Receita: R$ ${item.receita.toFixed(2)}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Auto-refresh a cada 30 segundos
+        setInterval(() => {
+            carregarEstatisticas();
+        }, 30000);
+    </script>
+    
+    <!-- Script de informações do restaurante -->
+    <script src="js/restaurant-info.js"></script>
+</body>
+</html>

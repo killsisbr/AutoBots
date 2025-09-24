@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏍️ Dashboard Motoboy - Brutus Burger</title>
+    <style>
+        :root {
+            --primary-color: #10b981;
+            --secondary-color: #059669;
+            --accent-color: #34d399;
+            --background-dark: #0f172a;
+            --background-card: rgba(30, 41, 59, 0.8);
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --border-color: rgba(52, 211, 153, 0.2);
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --success-color: #22c55e;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+            --border-radius: 12px;
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--background-dark) 0%, #1e293b 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(52, 211, 153, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .header {
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            padding: var(--spacing-md);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        .controls {
+            display: flex;
+            gap: var(--spacing-sm);
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .period-selector {
+            display: flex;
+            background: var(--background-card);
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .period-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.9rem;
+        }
+
+        .period-btn:hover {
+            background: rgba(52, 211, 153, 0.1);
+            color: var(--text-primary);
+        }
+
+        .period-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .refresh-btn {
+            background: var(--primary-color);
+            border: none;
+            color: white;
+            padding: var(--spacing-xs) var(--spacing-md);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            font-size: 0.9rem;
+        }
+
+        .refresh-btn:hover {
+            background: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: var(--spacing-lg);
+        }
+
+        .main-value {
+            text-align: center;
+            margin-bottom: var(--spacing-xl);
+            background: var(--background-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-xl);
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .main-value::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+        }
+
+        .main-value h1 {
+            font-size: 3.5rem;
+            color: var(--accent-color);
+            margin-bottom: var(--spacing-sm);
+            text-shadow: 0 0 20px rgba(52, 211, 153, 0.3);
+            font-weight: 700;
+        }
+
+        .main-value .subtitle {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .main-value .period-info {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            opacity: 0.8;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .stat-card {
+            background: var(--background-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-lg);
+            backdrop-filter: blur(10px);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-color);
+            box-shadow: 0 10px 30px var(--shadow-color);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+        }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .stat-icon {
+            font-size: 1.5rem;
+        }
+
+        .stat-title {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .stat-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            opacity: 0.8;
+        }
+
+        .chart-container {
+            background: var(--background-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+            backdrop-filter: blur(10px);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+            margin-top: var(--spacing-md);
+        }
+
+        .deliveries-list {
+            background: var(--background-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-lg);
+            backdrop-filter: blur(10px);
+        }
+
+        .delivery-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-sm);
+            border-bottom: 1px solid rgba(52, 211, 153, 0.1);
+            transition: var(--transition);
+        }
+
+        .delivery-item:last-child {
+            border-bottom: none;
+        }
+
+        .delivery-item:hover {
+            background: rgba(52, 211, 153, 0.05);
+            border-radius: var(--spacing-xs);
+        }
+
+        .delivery-info {
+            flex: 1;
+        }
+
+        .delivery-client {
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .delivery-address {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            opacity: 0.8;
+        }
+
+        .delivery-meta {
+            text-align: right;
+        }
+
+        .delivery-value {
+            font-weight: bold;
+            color: var(--accent-color);
+            margin-bottom: 2px;
+        }
+
+        .delivery-time {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            opacity: 0.8;
+        }
+
+        .loading {
+            text-align: center;
+            padding: var(--spacing-xl);
+            color: var(--text-secondary);
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-top: 2px solid var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: var(--spacing-sm);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--error-color);
+            padding: var(--spacing-md);
+            border-radius: var(--border-radius);
+            text-align: center;
+            margin: var(--spacing-md) 0;
+        }
+
+        .last-update {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-top: var(--spacing-lg);
+            opacity: 0.7;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .container {
+                padding: var(--spacing-md);
+            }
+
+            .main-value h1 {
+                font-size: 2.5rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: var(--spacing-md);
+            }
+
+            .delivery-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--spacing-xs);
+            }
+
+            .delivery-meta {
+                text-align: left;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                🏍️ Dashboard Motoboy
+            </div>
+            <div class="controls">
+                <div class="period-selector">
+                    <button class="period-btn active" data-period="hoje">Hoje</button>
+                    <button class="period-btn" data-period="semana">Semana</button>
+                    <button class="period-btn" data-period="mes">Mês</button>
+                    <button class="period-btn" data-period="todos">Todos</button>
+                </div>
+                <button class="refresh-btn" onclick="carregarDados()">
+                    🔄 Atualizar
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="main-value">
+            <h1 id="valorTotal">R$ 0,00</h1>
+            <div class="subtitle">Valor Total das Entregas</div>
+            <div class="period-info" id="periodoInfo">Carregando...</div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-icon">📦</span>
+                    <span class="stat-title">Quantidade de Entregas</span>
+                </div>
+                <div class="stat-value" id="quantidadeEntregas">0</div>
+                <div class="stat-subtitle">pedidos entregues</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-icon">💰</span>
+                    <span class="stat-title">Valor Médio por Entrega</span>
+                </div>
+                <div class="stat-value" id="valorMedio">R$ 0,00</div>
+                <div class="stat-subtitle">ticket médio</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-icon">⏰</span>
+                    <span class="stat-title">Última Atualização</span>
+                </div>
+                <div class="stat-value" id="ultimaAtualizacao" style="font-size: 1.2rem;">--:--</div>
+                <div class="stat-subtitle">horário da consulta</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h3 style="margin-bottom: var(--spacing-lg); color: white; display: flex; align-items: center; gap: var(--spacing-sm);">
+                📊 Entregas por Horário
+            </h3>
+            <div class="chart-wrapper">
+                <canvas id="horariosChart"></canvas>
+            </div>
+        </div>
+
+        <div class="deliveries-list">
+            <h3 style="margin-bottom: var(--spacing-lg); color: white; display: flex; align-items: center; gap: var(--spacing-sm);">
+                🚚 Últimas Entregas
+            </h3>
+            <div id="ultimasEntregas">
+                <div class="loading">Carregando entregas...</div>
+            </div>
+        </div>
+
+        <div class="last-update" id="footerUpdate">
+            Dados atualizados automaticamente a cada 30 segundos
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let currentPeriod = 'hoje';
+        let horariosChart = null;
+        let autoRefreshInterval = null;
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            carregarDados();
+            startAutoRefresh();
+        });
+
+        function setupEventListeners() {
+            // Seletores de período
+            document.querySelectorAll('.period-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentPeriod = this.dataset.period;
+                    carregarDados();
+                });
+            });
+        }
+
+        async function carregarDados() {
+            try {
+                showLoading();
+                
+                const response = await fetch(`/api/motoboy/valor?periodo=${currentPeriod}`);
+                const data = await response.json();
+                
+                if (data.ok) {
+                    updateUI(data.dados);
+                } else {
+                    showError('Erro ao carregar dados: ' + (data.error || 'Erro desconhecido'));
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                showError('Erro ao conectar com o servidor');
+            }
+        }
+
+        function updateUI(dados) {
+            // Valor principal
+            document.getElementById('valorTotal').textContent = `R$ ${dados.valorTotalMotoboy.toFixed(2).replace('.', ',')}`;
+            
+            // Informações do período
+            const periodos = {
+                'hoje': 'Hoje',
+                'semana': 'Esta Semana',
+                'mes': 'Este Mês',
+                'todos': 'Todos os Períodos'
+            };
+            document.getElementById('periodoInfo').textContent = `${periodos[dados.periodo]} • ${dados.quantidadeEntregas} entregas`;
+            
+            // Cards de estatísticas
+            document.getElementById('quantidadeEntregas').textContent = dados.quantidadeEntregas;
+            document.getElementById('valorMedio').textContent = `R$ ${dados.valorMedioEntrega.toFixed(2).replace('.', ',')}`;
+            document.getElementById('ultimaAtualizacao').textContent = dados.ultimaAtualizacao.split(' ')[1];
+            
+            // Gráfico de horários
+            updateHorariosChart(dados.entregasPorHora);
+            
+            // Lista de últimas entregas
+            updateUltimasEntregas(dados.ultimasEntregas);
+            
+            // Footer
+            document.getElementById('footerUpdate').textContent = `Última atualização: ${dados.ultimaAtualizacao}`;
+            
+            hideLoading();
+        }
+
+        function updateHorariosChart(entregasPorHora) {
+            const ctx = document.getElementById('horariosChart').getContext('2d');
+            
+            if (horariosChart) {
+                horariosChart.destroy();
+            }
+            
+            // Preparar dados para todas as 24 horas
+            const labels = [];
+            const valores = [];
+            const quantidades = [];
+            
+            for (let hora = 0; hora < 24; hora++) {
+                labels.push(`${hora.toString().padStart(2, '0')}:00`);
+                const dadosHora = entregasPorHora.find(h => h.hora === hora);
+                valores.push(dadosHora ? dadosHora.valor : 0);
+                quantidades.push(dadosHora ? dadosHora.quantidade : 0);
+            }
+            
+            horariosChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Valor das Entregas (R$)',
+                        data: valores,
+                        backgroundColor: 'rgba(52, 211, 153, 0.8)',
+                        borderColor: 'rgba(52, 211, 153, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'white'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const hora = context.dataIndex;
+                                    const dadosHora = entregasPorHora.find(h => h.hora === hora);
+                                    return dadosHora ? `${dadosHora.quantidade} entregas` : '0 entregas';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: 'white',
+                                callback: function(value) {
+                                    return 'R$ ' + value.toFixed(2);
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: 'white'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateUltimasEntregas(entregas) {
+            const container = document.getElementById('ultimasEntregas');
+            
+            if (entregas.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: var(--spacing-lg);">Nenhuma entrega encontrada</div>';
+                return;
+            }
+            
+            container.innerHTML = entregas.map(entrega => `
+                <div class="delivery-item">
+                    <div class="delivery-info">
+                        <div class="delivery-client">${entrega.cliente}</div>
+                        <div class="delivery-address">${entrega.endereco}</div>
+                    </div>
+                    <div class="delivery-meta">
+                        <div class="delivery-value">R$ ${entrega.valor.toFixed(2).replace('.', ',')}</div>
+                        <div class="delivery-time">${entrega.horario}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function showLoading() {
+            document.getElementById('valorTotal').textContent = 'R$ --,--';
+            document.getElementById('periodoInfo').textContent = 'Carregando...';
+            document.getElementById('ultimasEntregas').innerHTML = '<div class="loading">Carregando entregas...</div>';
+        }
+
+        function hideLoading() {
+            // Loading é removido automaticamente quando os dados são atualizados
+        }
+
+        function showError(message) {
+            const container = document.querySelector('.container');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            container.insertBefore(errorDiv, container.firstChild);
+            
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+        }
+
+        function startAutoRefresh() {
+            // Atualizar a cada 30 segundos
+            autoRefreshInterval = setInterval(carregarDados, 30000);
+        }
+
+        // Limpar interval quando a página for fechada
+        window.addEventListener('beforeunload', function() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+        });
+    </script>
+</body>
+</html>

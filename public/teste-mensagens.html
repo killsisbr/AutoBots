@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Mensagens</title>
+</head>
+<body>
+    <h1>Teste de Carregamento de Mensagens</h1>
+    <div id="resultado"></div>
+    <button onclick="testarAPI()">Testar API</button>
+
+    <script>
+        // Sistema Multi-Tenant - Obter clienteId da sessão
+        async function getClienteId() {
+            try {
+                const response = await fetch('/api/auth/me');
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.id;
+                }
+            } catch (error) {
+                console.error('Erro ao obter clienteId:', error);
+            }
+            return null;
+        }
+
+        // Função auxiliar para construir URLs de API com clienteId
+        async function buildApiUrl(endpoint) {
+            const clienteId = await getClienteId();
+            if (!clienteId) {
+                throw new Error('Cliente não autenticado');
+            }
+            const separator = endpoint.includes('?') ? '&' : '?';
+            return `${endpoint}${separator}clienteId=${clienteId}`;
+        }
+
+        console.log('🚀 Script carregado!');
+        
+        async function testarAPI() {
+            console.log('🔄 Testando API...');
+            try {
+                const apiUrl = await buildApiUrl('/api/mensagens');
+                const response = await fetch(apiUrl);
+                console.log('📥 Resposta:', response.status);
+                const data = await response.json();
+                console.log('✅ Dados:', data.length, 'mensagens');
+                document.getElementById('resultado').innerHTML = `
+                    <h2>Sucesso!</h2>
+                    <p>Carregadas ${data.length} mensagens</p>
+                    <pre>${JSON.stringify(data.slice(0, 2), null, 2)}</pre>
+                `;
+            } catch (error) {
+                console.error('❌ Erro:', error);
+                document.getElementById('resultado').innerHTML = `
+                    <h2>Erro!</h2>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM carregado!');
+            testarAPI();
+        });
+    </script>
+</body>
+</html>

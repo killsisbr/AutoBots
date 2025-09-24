@@ -1,0 +1,393 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>Pedidos - [CLIENTE_NOME]</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .client-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    }
+    .client-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin: 20px 0;
+    }
+    .stat-card {
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .stat-label {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    .pedido-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      border-left: 4px solid #3498db;
+      transition: all 0.3s ease;
+    }
+    .pedido-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+    .pedido-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .pedido-id {
+      font-weight: bold;
+      color: #2c3e50;
+    }
+    .pedido-status {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .status-finalizado { background: #2ecc71; color: white; }
+    .status-preparando { background: #f39c12; color: white; }
+    .status-entregue { background: #27ae60; color: white; }
+    .status-cancelado { background: #e74c3c; color: white; }
+    .pedido-items {
+      margin: 12px 0;
+    }
+    .item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #ecf0f1;
+    }
+    .item:last-child {
+      border-bottom: none;
+    }
+    .pedido-total {
+      text-align: right;
+      font-size: 18px;
+      font-weight: bold;
+      color: #27ae60;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 2px solid #ecf0f1;
+    }
+    .filters {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      padding: 8px 16px;
+      border: 2px solid #3498db;
+      background: transparent;
+      color: #3498db;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .filter-btn.active {
+      background: #3498db;
+      color: white;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #7f8c8d;
+    }
+    .empty-state svg {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 20px;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="client-header">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <h1 style="margin: 0; font-size: 28px;" id="client-name">Carregando...</h1>
+        <p style="margin: 8px 0 0 0; opacity: 0.9;" id="client-id">ID: carregando...</p>
+      </div>
+      <div style="display: flex; gap: 12px;">
+        <button id="btn-voltar" class="icon-btn" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">
+          ← Voltar
+        </button>
+        <button id="btn-refresh" class="icon-btn" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">
+          🔄 Atualizar
+        </button>
+      </div>
+    </div>
+    
+    <div class="client-stats">
+      <div class="stat-card">
+        <div class="stat-value" id="total-pedidos">0</div>
+        <div class="stat-label">Total de Pedidos</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="total-valor">R$ 0,00</div>
+        <div class="stat-label">Valor Total</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="pedidos-mes">0</div>
+        <div class="stat-label">Pedidos este Mês</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="ultimo-pedido">-</div>
+        <div class="stat-label">Último Pedido</div>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <div class="filters">
+      <button class="filter-btn active" data-filter="todos">Todos</button>
+      <button class="filter-btn" data-filter="finalizado">Finalizados</button>
+      <button class="filter-btn" data-filter="preparando">Preparando</button>
+      <button class="filter-btn" data-filter="entregue">Entregues</button>
+      <button class="filter-btn" data-filter="cancelado">Cancelados</button>
+    </div>
+
+    <div id="pedidos-lista">
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M7 4V2C7 1.45 7.45 1 8 1H16C16.55 1 17 1.45 17 2V4H20C20.55 4 21 4.45 21 5S20.55 6 20 6H19V19C19 20.1 18.1 21 17 21H7C5.9 21 5 20.1 5 19V6H4C3.45 6 3 5.55 3 5S3.45 4 4 4H7ZM9 3V4H15V3H9ZM7 6V19H17V6H7Z"/>
+        </svg>
+        <h3>Nenhum pedido encontrado</h3>
+        <p>Os pedidos deste cliente aparecerão aqui quando estiverem disponíveis.</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Obter o ID do cliente da URL
+    const urlPath = window.location.pathname;
+    const clienteId = urlPath.split('/')[1]; // /cliente-id/pedidos.html
+    
+    // Configurar título da página
+    document.title = `Pedidos - ${clienteId}`;
+    
+    // Estado da aplicação
+    let todosOsPedidos = [];
+    let filtroAtual = 'todos';
+
+    // Elementos DOM
+    const clientNameEl = document.getElementById('client-name');
+    const clientIdEl = document.getElementById('client-id');
+    const totalPedidosEl = document.getElementById('total-pedidos');
+    const totalValorEl = document.getElementById('total-valor');
+    const pedidosMesEl = document.getElementById('pedidos-mes');
+    const ultimoPedidoEl = document.getElementById('ultimo-pedido');
+    const pedidosListaEl = document.getElementById('pedidos-lista');
+
+    // Event listeners
+    document.getElementById('btn-voltar').addEventListener('click', () => {
+      window.history.back();
+    });
+
+    document.getElementById('btn-refresh').addEventListener('click', () => {
+      carregarPedidos();
+    });
+
+    // Filtros
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        filtroAtual = e.target.dataset.filter;
+        renderizarPedidos();
+      });
+    });
+
+    // Função para carregar dados do cliente
+    async function carregarDadosCliente() {
+      try {
+        // Buscar informações do restaurante/cliente
+        const response = await fetch(`/api/restaurant/${clienteId}`);
+        if (response.ok) {
+          const cliente = await response.json();
+          clientNameEl.textContent = cliente.nome || clienteId;
+          clientIdEl.textContent = `ID: ${clienteId}`;
+        } else {
+          clientNameEl.textContent = clienteId;
+          clientIdEl.textContent = `ID: ${clienteId}`;
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados do cliente:', error);
+        clientNameEl.textContent = clienteId;
+        clientIdEl.textContent = `ID: ${clienteId}`;
+      }
+    }
+
+    // Função para carregar pedidos do cliente
+    async function carregarPedidos() {
+      try {
+        const response = await fetch(`/api/pedidos?clienteId=${clienteId}`, {
+          headers: {
+            'X-Restaurant-ID': clienteId
+          }
+        });
+        const data = await response.json();
+        
+        if (data.ok) {
+          todosOsPedidos = data.pedidos || [];
+          atualizarEstatisticas(todosOsPedidos);
+          renderizarPedidos();
+        } else {
+          console.error('Erro ao carregar pedidos:', data.error);
+          mostrarErro('Erro ao carregar pedidos: ' + data.error);
+        }
+      } catch (error) {
+        console.error('Erro na requisição:', error);
+        mostrarErro('Erro de conexão. Verifique sua internet.');
+      }
+    }
+
+    // Função para atualizar estatísticas
+    function atualizarEstatisticas(pedidos) {
+      const totalPedidos = pedidos.length;
+      const totalValor = pedidos.reduce((sum, pedido) => sum + Number(pedido.total || 0), 0);
+      
+      // Pedidos deste mês
+      const agora = new Date();
+      const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
+      const pedidosMes = pedidos.filter(pedido => 
+        new Date(pedido.data_criacao || pedido.data_pedido) >= inicioMes
+      ).length;
+
+      // Último pedido
+      const ultimoPedido = pedidos.length > 0 
+        ? new Date(pedidos[0].data_criacao || pedidos[0].data_pedido).toLocaleDateString('pt-BR')
+        : '-';
+
+      totalPedidosEl.textContent = totalPedidos;
+      totalValorEl.textContent = `R$ ${totalValor.toFixed(2).replace('.', ',')}`;
+      pedidosMesEl.textContent = pedidosMes;
+      ultimoPedidoEl.textContent = ultimoPedido;
+    }
+
+    // Função para renderizar pedidos
+    function renderizarPedidos() {
+      const pedidosFiltrados = filtroAtual === 'todos' 
+        ? todosOsPedidos 
+        : todosOsPedidos.filter(pedido => pedido.status === filtroAtual);
+
+      if (pedidosFiltrados.length === 0) {
+        pedidosListaEl.innerHTML = `
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 4V2C7 1.45 7.45 1 8 1H16C16.55 1 17 1.45 17 2V4H20C20.55 4 21 4.45 21 5S20.55 6 20 6H19V19C19 20.1 18.1 21 17 21H7C5.9 21 5 20.1 5 19V6H4C3.45 6 3 5.55 3 5S3.45 4 4 4H7ZM9 3V4H15V3H9ZM7 6V19H17V6H7Z"/>
+            </svg>
+            <h3>Nenhum pedido encontrado</h3>
+            <p>Não há pedidos ${filtroAtual === 'todos' ? '' : 'com status "' + formatarStatus(filtroAtual) + '"'} para este cliente.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const html = pedidosFiltrados.map(pedido => {
+        // Processar itens
+        let itens = [];
+        if (pedido.itens) {
+          try {
+            itens = Array.isArray(pedido.itens) ? pedido.itens : JSON.parse(pedido.itens);
+          } catch (e) {
+            console.error('Erro ao parsear itens:', e);
+            itens = [];
+          }
+        } else if (pedido.items) {
+          itens = pedido.items;
+        }
+
+        return `
+          <div class="pedido-card">
+            <div class="pedido-header">
+              <div class="pedido-id">Pedido #${pedido.id}</div>
+              <div class="pedido-status status-${pedido.status || 'finalizado'}">${formatarStatus(pedido.status || 'finalizado')}</div>
+            </div>
+            <div style="font-size: 14px; color: #7f8c8d; margin-bottom: 8px;">
+              ${new Date(pedido.data_criacao || pedido.data_pedido).toLocaleString('pt-BR')}
+            </div>
+            <div class="pedido-items">
+              ${itens.map(item => `
+                <div class="item">
+                  <span>${item.quantidade}x ${item.nome}</span>
+                  <span>R$ ${(Number(item.preco || 0) * Number(item.quantidade || 1)).toFixed(2).replace('.', ',')}</span>
+                </div>
+              `).join('')}
+            </div>
+            ${pedido.endereco_entrega ? `<div style="font-size: 14px; color: #7f8c8d; margin-top: 8px;"><i class="fas fa-map-marker-alt"></i> ${pedido.endereco_entrega}</div>` : ''}
+            ${pedido.observacoes ? `<div style="font-style: italic; color: #7f8c8d; margin-top: 8px;">Obs: ${pedido.observacoes}</div>` : ''}
+            <div class="pedido-total">
+              Total: R$ ${Number(pedido.total || 0).toFixed(2).replace('.', ',')}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      pedidosListaEl.innerHTML = html;
+    }
+
+    // Função para formatar status para exibição
+    function formatarStatus(status) {
+      const statusMap = {
+        'pendente': 'Pendente',
+        'preparando': 'Preparando',
+        'pronto': 'Pronto',
+        'saiu_para_entrega': 'Saiu para Entrega',
+        'entregue': 'Entregue',
+        'cancelado': 'Cancelado',
+        'finalizado': 'Finalizado'
+      };
+      return statusMap[status] || status;
+    }
+
+    // Função para mostrar erro
+    function mostrarErro(mensagem) {
+      pedidosListaEl.innerHTML = `
+        <div class="empty-state" style="color: #e74c3c;">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+          <h3>Erro ao carregar pedidos</h3>
+          <p>${mensagem}</p>
+          <button onclick="carregarPedidos()" style="margin-top: 12px; padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            Tentar Novamente
+          </button>
+        </div>
+      `;
+    }
+
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', () => {
+      carregarDadosCliente();
+      carregarPedidos();
+      
+      // Atualizar a cada 30 segundos
+      setInterval(carregarPedidos, 30000);
+    });
+  </script>
+</body>
+</html>

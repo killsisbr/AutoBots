@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <title>Gerenciar Gatilhos - Brutus Burger</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-size: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .search-box input::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            opacity: 0.8;
+        }
+
+        .gatilhos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .gatilho-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .gatilho-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .gatilho-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .gatilho-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .gatilho-categoria {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        .gatilho-palavras {
+            margin-bottom: 15px;
+        }
+
+        .palavra-tag {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            margin: 2px;
+        }
+
+        .gatilho-resposta {
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .gatilho-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-ativo {
+            background: rgba(56, 239, 125, 0.3);
+            color: #38ef7d;
+        }
+
+        .status-inativo {
+            background: rgba(255, 75, 43, 0.3);
+            color: #ff4b2b;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .btn-close {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .form-input, .form-textarea, .form-select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-input::placeholder, .form-textarea::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 30px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            opacity: 0.7;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.1rem;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 2000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+
+        .toast-error {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+        }
+
+        .toast-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-box {
+                min-width: auto;
+            }
+
+            .gatilhos-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Gerenciar Gatilhos</h1>
+            <p>Configure palavras-chave e respostas automáticas para o bot</p>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="total-gatilhos">0</div>
+                <div class="stat-label">Total de Gatilhos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="gatilhos-ativos">0</div>
+                <div class="stat-label">Ativos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="gatilhos-inativos">0</div>
+                <div class="stat-label">Inativos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-palavras">0</div>
+                <div class="stat-label">Palavras-chave</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="🔍 Buscar gatilhos, palavras-chave ou respostas...">
+            </div>
+            <button class="btn btn-success" onclick="openModal()">
+                ➕ Novo Gatilho
+            </button>
+            <a href="/painel-mensagens" class="btn btn-primary">
+                📝 Gerenciar Mensagens
+            </a>
+        </div>
+
+        <div id="loading" class="loading">
+            Carregando gatilhos...
+        </div>
+
+        <div id="gatilhos-container" class="gatilhos-grid" style="display: none;"></div>
+
+        <div id="empty-state" class="empty-state" style="display: none;">
+            <h3>Nenhum gatilho encontrado</h3>
+            <p>Crie seu primeiro gatilho para automatizar respostas!</p>
+            <button class="btn btn-success" onclick="openModal()">
+                ➕ Criar Primeiro Gatilho
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal para criar/editar gatilho -->
+    <div id="modal-gatilho" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modal-title">Novo Gatilho</h2>
+                <button class="btn-close" onclick="closeModal()">✕</button>
+            </div>
+            
+            <form id="form-gatilho">
+                <div class="form-group">
+                    <label class="form-label">Nome do Gatilho *</label>
+                    <input type="text" id="gatilho-nome" class="form-input" placeholder="Ex: Saudação, Cardápio, Ajuda" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Palavras-chave * (separadas por vírgula)</label>
+                    <input type="text" id="gatilho-palavras" class="form-input" placeholder="Ex: oi, olá, bom dia, boa tarde" required>
+                    <small style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
+                        Digite as palavras que ativarão este gatilho, separadas por vírgula
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Resposta *</label>
+                    <textarea id="gatilho-resposta" class="form-textarea" placeholder="Digite a resposta que será enviada quando este gatilho for ativado..." required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Tipo</label>
+                    <select id="gatilho-tipo" class="form-select">
+                        <option value="texto">Texto Simples</option>
+                        <option value="comando">Comando</option>
+                        <option value="menu">Menu/Lista</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Prioridade</label>
+                    <select id="gatilho-prioridade" class="form-select">
+                        <option value="1">Alta (1)</option>
+                        <option value="2">Média (2)</option>
+                        <option value="3" selected>Baixa (3)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="gatilho-ativo" checked style="margin-right: 8px;">
+                        Gatilho ativo
+                    </label>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-danger" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Salvar Gatilho</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let gatilhos = [];
+        let editingId = null;
+
+        // Carregar gatilhos ao inicializar
+        document.addEventListener('DOMContentLoaded', function() {
+            loadGatilhos();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Busca em tempo real
+            document.getElementById('search-input').addEventListener('input', function() {
+                filterGatilhos(this.value);
+            });
+
+            // Submit do formulário
+            document.getElementById('form-gatilho').addEventListener('submit', handleSubmit);
+        }
+
+        // Sistema Multi-Tenant - Obter clienteId da sessão
+        async function getClienteId() {
+            try {
+                const response = await fetch('/api/auth/me');
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.id;
+                }
+            } catch (error) {
+                console.error('Erro ao obter clienteId:', error);
+            }
+            return null;
+        }
+
+        // Função auxiliar para construir URLs de API com clienteId
+        async function buildApiUrl(endpoint) {
+            const clienteId = await getClienteId();
+            if (!clienteId) {
+                throw new Error('Cliente não autenticado');
+            }
+            const separator = endpoint.includes('?') ? '&' : '?';
+            return `${endpoint}${separator}clienteId=${clienteId}`;
+        }
+
+        async function loadGatilhos() {
+            try {
+                showLoading();
+                const apiUrl = await buildApiUrl('/api/gatilhos');
+                const response = await fetch(apiUrl);
+                if (!response.ok) throw new Error('Erro ao carregar gatilhos');
+                
+                gatilhos = await response.json();
+                renderGatilhos();
+                updateStats();
+            } catch (error) {
+                console.error('Erro ao carregar gatilhos:', error);
+                showToast('Erro ao carregar gatilhos', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function renderGatilhos(filteredGatilhos = null) {
+            const container = document.getElementById('gatilhos-container');
+            const emptyState = document.getElementById('empty-state');
+            const gatilhosToRender = filteredGatilhos || gatilhos;
+
+            if (gatilhosToRender.length === 0) {
+                container.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            container.style.display = 'grid';
+            emptyState.style.display = 'none';
+
+            container.innerHTML = gatilhosToRender.map(gatilho => `
+                <div class="gatilho-card">
+                    <div class="gatilho-header">
+                        <div>
+                            <div class="gatilho-title">${gatilho.nome}</div>
+                            <span class="gatilho-categoria">${gatilho.tipo || 'texto'}</span>
+                        </div>
+                        <span class="status-badge ${gatilho.ativo ? 'status-ativo' : 'status-inativo'}">
+                            ${gatilho.ativo ? 'Ativo' : 'Inativo'}
+                        </span>
+                    </div>
+
+                    <div class="gatilho-palavras">
+                        <strong>Palavras-chave:</strong><br>
+                        ${gatilho.palavras_chave.split(',').map(palavra => 
+                            `<span class="palavra-tag">${palavra.trim()}</span>`
+                        ).join('')}
+                    </div>
+
+                    <div class="gatilho-resposta">
+                        <strong>Resposta:</strong><br>
+                        ${gatilho.resposta.length > 100 ? 
+                            gatilho.resposta.substring(0, 100) + '...' : 
+                            gatilho.resposta
+                        }
+                    </div>
+
+                    <div class="gatilho-actions">
+                        <button class="btn btn-primary btn-small" onclick="editGatilho(${gatilho.id})">
+                            ✏️ Editar
+                        </button>
+                        <button class="btn btn-warning btn-small" onclick="toggleGatilho(${gatilho.id})">
+                            ${gatilho.ativo ? '⏸️ Desativar' : '▶️ Ativar'}
+                        </button>
+                        <button class="btn btn-danger btn-small" onclick="deleteGatilho(${gatilho.id})">
+                            🗑️ Excluir
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateStats() {
+            const total = gatilhos.length;
+            const ativos = gatilhos.filter(g => g.ativo).length;
+            const inativos = total - ativos;
+            const totalPalavras = gatilhos.reduce((acc, g) => 
+                acc + g.palavras_chave.split(',').length, 0
+            );
+
+            document.getElementById('total-gatilhos').textContent = total;
+            document.getElementById('gatilhos-ativos').textContent = ativos;
+            document.getElementById('gatilhos-inativos').textContent = inativos;
+            document.getElementById('total-palavras').textContent = totalPalavras;
+        }
+
+        function filterGatilhos(searchTerm) {
+            if (!searchTerm.trim()) {
+                renderGatilhos();
+                return;
+            }
+
+            const filtered = gatilhos.filter(gatilho => 
+                gatilho.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                gatilho.palavras_chave.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                gatilho.resposta.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
+            renderGatilhos(filtered);
+        }
+
+        function openModal(id = null) {
+            editingId = id;
+            const modal = document.getElementById('modal-gatilho');
+            const title = document.getElementById('modal-title');
+            
+            if (id) {
+                title.textContent = 'Editar Gatilho';
+                fillForm(id);
+            } else {
+                title.textContent = 'Novo Gatilho';
+                clearForm();
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('modal-gatilho').style.display = 'none';
+            editingId = null;
+            clearForm();
+        }
+
+        function fillForm(id) {
+            const gatilho = gatilhos.find(g => g.id === id);
+            if (!gatilho) return;
+
+            document.getElementById('gatilho-nome').value = gatilho.nome;
+            document.getElementById('gatilho-palavras').value = gatilho.palavras_chave;
+            document.getElementById('gatilho-resposta').value = gatilho.resposta;
+            document.getElementById('gatilho-tipo').value = gatilho.tipo || 'texto';
+            document.getElementById('gatilho-prioridade').value = gatilho.prioridade || 3;
+            document.getElementById('gatilho-ativo').checked = gatilho.ativo;
+        }
+
+        function clearForm() {
+            document.getElementById('form-gatilho').reset();
+            document.getElementById('gatilho-ativo').checked = true;
+            document.getElementById('gatilho-prioridade').value = 3;
+        }
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+
+            const data = {
+                nome: document.getElementById('gatilho-nome').value,
+                palavras_chave: document.getElementById('gatilho-palavras').value,
+                resposta: document.getElementById('gatilho-resposta').value,
+                tipo: document.getElementById('gatilho-tipo').value,
+                prioridade: parseInt(document.getElementById('gatilho-prioridade').value),
+                ativo: document.getElementById('gatilho-ativo').checked
+            };
+
+            try {
+                const baseUrl = editingId ? `/api/gatilhos/${editingId}` : '/api/gatilhos';
+                const url = await buildApiUrl(baseUrl);
+                const method = editingId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) throw new Error('Erro ao salvar gatilho');
+
+                showToast(editingId ? 'Gatilho atualizado!' : 'Gatilho criado!', 'success');
+                closeModal();
+                loadGatilhos();
+            } catch (error) {
+                console.error('Erro ao salvar gatilho:', error);
+                showToast('Erro ao salvar gatilho', 'error');
+            }
+        }
+
+        function editGatilho(id) {
+            openModal(id);
+        }
+
+        async function toggleGatilho(id) {
+            const gatilho = gatilhos.find(g => g.id === id);
+            if (!gatilho) return;
+
+            try {
+                const url = await buildApiUrl(`/api/gatilhos/${id}`);
+                const response = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ...gatilho,
+                        ativo: !gatilho.ativo
+                    })
+                });
+
+                if (!response.ok) throw new Error('Erro ao atualizar gatilho');
+
+                showToast(`Gatilho ${gatilho.ativo ? 'desativado' : 'ativado'}!`, 'success');
+                loadGatilhos();
+            } catch (error) {
+                console.error('Erro ao atualizar gatilho:', error);
+                showToast('Erro ao atualizar gatilho', 'error');
+            }
+        }
+
+        async function deleteGatilho(id) {
+            const gatilho = gatilhos.find(g => g.id === id);
+            if (!gatilho) return;
+
+            if (!confirm(`Tem certeza que deseja excluir o gatilho "${gatilho.nome}"?`)) return;
+
+            try {
+                const url = await buildApiUrl(`/api/gatilhos/${id}`);
+                const response = await fetch(url, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) throw new Error('Erro ao excluir gatilho');
+
+                showToast('Gatilho excluído!', 'success');
+                loadGatilhos();
+            } catch (error) {
+                console.error('Erro ao excluir gatilho:', error);
+                showToast('Erro ao excluir gatilho', 'error');
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('gatilhos-container').style.display = 'none';
+            document.getElementById('empty-state').style.display = 'none';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => toast.classList.add('show'), 100);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
+        }
+
+        // Fechar modal ao clicar fora
+        window.onclick = function(event) {
+            const modal = document.getElementById('modal-gatilho');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>

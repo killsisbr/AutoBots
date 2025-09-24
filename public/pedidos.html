@@ -1,0 +1,1150 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>Painel de Pedidos</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <h1 style="margin:0">Painel de Pedidos — Conversas em tempo real</h1>
+        <div id="restaurant-info" style="margin-top:4px;font-size:12px;color:#888;"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="display:flex;flex-direction:column;align-items:flex-end;margin-right:12px;font-size:13px">
+          <div style="color:var(--muted)">Total hoje (produtos): R$ <span id="header-total-produtos" style="color:#3a8;font-weight:bold">0.00</span></div>
+          <div style="color:var(--muted)">💰 <strong style="color:#2ecc71">Entregas hoje: R$ <span id="header-total-entregues" style="color:#2ecc71;font-weight:bold;font-size:15px">0.00</span></strong></div>
+        </div>
+        <button id="btn-bot-toggle" class="icon-btn" style="background:#2ecc71;color:#fff;padding:8px 10px;border-radius:8px">🤖 Bot: ATIVO</button>
+        <button id="qr-button" class="icon-btn" style="background:#25d366;color:#fff;padding:8px 10px;border-radius:8px">📱 QR Code</button>
+        <button id="btn-dashboard" class="icon-btn" style="background:#e74c3c;color:#fff;padding:8px 10px;border-radius:8px">📊 Dashboard</button>
+        <button id="btn-entregues" class="icon-btn" style="background:#444;color:#fff;padding:8px 10px;border-radius:8px">📦 Entregues</button>
+        <button id="btn-cardapio" class="icon-btn" style="background:#3a8;color:#fff;padding:8px 10px;border-radius:8px">📖 Cardápio</button>
+        <button id="btn-mensagens" class="icon-btn" style="background:#9b59b6;color:#fff;padding:8px 10px;border-radius:8px">🤖 Mensagens</button>
+      </div>
+    </div>
+    <div id="legend" style="margin-top:10px; display:flex; gap:10px; align-items:center;">
+      <div style="display:flex;gap:6px;align-items:center"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#f1c40f"></span><small style="color:#cfcfcf">Pedindo / Em confirmação</small></div>
+      <div style="display:flex;gap:6px;align-items:center"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#3498db"></span><small style="color:#cfcfcf">Coletando endereço</small></div>
+      <div style="display:flex;gap:6px;align-items:center"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#2ecc71"></span><small style="color:#cfcfcf">Finalizado</small></div>
+      <div style="display:flex;gap:6px;align-items:center"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#95a5a6"></span><small style="color:#cfcfcf">Outros</small></div>
+    </div>
+  </header>
+  <main>
+    <div id="lista"></div>
+  </main>
+
+  <!-- Modal: Pedidos Entregues -->
+  <div id="entregues-modal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(20px); align-items:center; justify-content:center; z-index:2500;">
+    <div style="background:rgba(255,255,255,0.1); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.2); color:#fff; width:820px; max-width:98%; border-radius:16px; padding:24px; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h2 style="margin:0; font-size:20px; font-weight:600;">📦 Pedidos Entregues / Saiu para entrega - HOJE</h2>
+        <div style="display:flex; gap:12px;">
+          <button id="entregues-refresh" class="icon-btn" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8); color:#fff;">🔄 Atualizar</button>
+          <button id="entregues-close" class="icon-btn secondary">✕ Fechar</button>
+        </div>
+      </div>
+      <div id="entregues-body" style="margin-top:20px; max-height:540px; overflow:auto; padding-top:8px;"></div>
+    </div>
+  </div>
+
+  <!-- Modal de Conversa -->
+  <div id="conversation-modal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(20px); align-items:center; justify-content:center; z-index:2000;">
+    <div id="conversation-content" style="background:rgba(255,255,255,0.1); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.2); color:#fff; width:720px; max-width:95%; border-radius:16px; padding:24px; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 id="conv-title" style="margin:0; font-size:18px; font-weight:600;"></h2>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button id="conv-open-wa" class="icon-btn" style="background:linear-gradient(135deg,#25d366,#128c7e);">💬 WhatsApp</button>
+          <button id="conv-edit-name" class="icon-btn" style="background:linear-gradient(135deg,var(--warning),#d97706);">✏️ Editar</button>
+          <button id="conv-print" class="icon-btn secondary">🖨️ Imprimir</button>
+          <button id="conv-close" class="icon-btn secondary">✕ Fechar</button>
+        </div>
+      </div>
+      <div id="conv-body" style="margin-top:20px; display:grid; grid-template-columns:1fr 360px; gap:16px;">
+        <div id="conv-messages" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:16px; max-height:420px; overflow:auto;"></div>
+        <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:16px; max-height:420px; overflow:auto;">
+          <h4 style="margin-top:0; color:#fff; font-weight:600;">🛒 Carrinho</h4>
+          <div id="conv-cart"></div>
+          <p class="small" style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">Taxa de entrega: R$ <span id="conv-taxa">0.00</span></p>
+          <p class="small" style="margin-top:8px; font-weight:600; font-size:14px;"><strong>💰 VALOR TOTAL:</strong> R$ <span id="conv-valor">0.00</span></p>
+        </div>
+      </div>
+      <!-- Input para enviar mensagem como admin -->
+      <div style="margin-top:20px; display:flex; gap:12px; align-items:flex-end;">
+        <textarea id="conv-input" placeholder="Digite uma mensagem para o cliente..." style="flex:1;padding:12px;border-radius:12px;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);height:64px;resize:none"></textarea>
+        <button id="conv-send" class="icon-btn" style="background:linear-gradient(135deg,var(--success),#059669);">📤 Enviar</button>
+      </div>
+      <!-- Admin quick actions: reset, clear cart, add item, finalizar -->
+      <div style="margin-top:16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <button id="conv-reset" class="icon-btn" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);">🔄 Resetar</button>
+        <button id="conv-clear" class="icon-btn danger">🗑️ Limpar</button>
+        <input id="conv-add-input" placeholder="1 dallas, sem bacon" style="flex:1;min-width:200px;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff" />
+        <button id="conv-add" class="icon-btn" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8);">➕ Adicionar</button>
+        <button id="conv-finalizar" class="icon-btn" style="background:linear-gradient(135deg,var(--success),#059669);">✅ Finalizar</button>
+      </div>
+    </div>
+  </div>
+
+      <!-- Modal: Pedido Detalhe (abrir último pedido) -->
+      <div id="pedido-detail-modal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(20px); align-items:center; justify-content:center; z-index:2700;">
+        <div style="background:rgba(255,255,255,0.1); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.2); color:#fff; width:720px; max-width:98%; border-radius:16px; padding:24px; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h2 id="pedido-detail-title" style="margin:0; font-size:20px; font-weight:600;">📋 Detalhes do Pedido</h2>
+            <div>
+              <button id="pedido-detail-close" class="icon-btn secondary">✕ Fechar</button>
+            </div>
+          </div>
+          <div id="pedido-detail-body" style="margin-top:20px; max-height:520px; overflow:auto;">
+            <!-- Conteúdo preenchido dinamicamente -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Dashboard -->
+      <div id="dashboard-modal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(20px); align-items:center; justify-content:center; z-index:2800;">
+        <div style="background:rgba(255,255,255,0.1); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.2); color:#fff; width:500px; max-width:95%; border-radius:16px; padding:24px; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+            <h2 style="margin:0;font-size:24px;font-weight:700;display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#ff6b6b,#ee5a24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">📊 Dashboard Financeiro</h2>
+            <button id="dashboard-close" class="icon-btn secondary">✕</button>
+          </div>
+          
+          <div style="display:grid;gap:20px;">
+            <!-- Valor Total Geral -->
+            <div style="background:rgba(255,255,255,0.1);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.2);padding:24px;border-radius:16px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.1);transition:all 0.3s ease;">
+              <div style="font-size:14px;color:rgba(255,255,255,0.8);margin-bottom:12px;font-weight:500;">💰 VALOR TOTAL GERAL</div>
+              <div style="font-size:36px;font-weight:700;color:#fff;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">R$ <span id="dashboard-total-geral">0.00</span></div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:8px;">Produtos + Entregas</div>
+            </div>
+            
+            <!-- Valor dos Produtos -->
+            <div style="background:rgba(255,255,255,0.1);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.2);padding:24px;border-radius:16px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.1);transition:all 0.3s ease;">
+              <div style="font-size:14px;color:rgba(255,255,255,0.8);margin-bottom:12px;font-weight:500;">🍔 VALOR DOS PRODUTOS</div>
+              <div style="font-size:36px;font-weight:700;color:#fff;background:linear-gradient(135deg,#10b981,#059669);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">R$ <span id="dashboard-total-produtos">0.00</span></div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:8px;">Apenas itens do cardápio</div>
+            </div>
+            
+            <!-- Valor das Entregas -->
+            <div style="background:rgba(255,255,255,0.1);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.2);padding:24px;border-radius:16px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.1);transition:all 0.3s ease;">
+              <div style="font-size:14px;color:rgba(255,255,255,0.8);margin-bottom:12px;font-weight:500;">🚚 VALOR DAS ENTREGAS</div>
+              <div style="font-size:36px;font-weight:700;color:#fff;background:linear-gradient(135deg,#f59e0b,#d97706);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">R$ <span id="dashboard-total-entregas">0.00</span></div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:8px;">Taxas de entrega</div>
+            </div>
+          </div>
+          
+          <div style="margin-top:24px;text-align:center;">
+            <button id="dashboard-refresh" class="icon-btn" style="background:linear-gradient(135deg,#ff6b6b,#ee5a24);font-size:16px;padding:14px 28px;">🔄 Atualizar Dados</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Cardápio Unificado -->
+      <div id="cardapio-modal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(20px); align-items:center; justify-content:center; z-index:2600;">
+        <div style="background:rgba(255,255,255,0.1); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.2); color:#fff; width:95%; max-width:1400px; height:95%; max-height:900px; border-radius:16px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+          <div style="background:rgba(255,255,255,0.1); padding:20px; border-bottom:1px solid rgba(255,255,255,0.2);">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <h2 style="margin:0;font-size:24px;font-weight:700;display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">🍽️ Gerenciamento Unificado do Cardápio</h2>
+              <button id="cardapio-close" class="icon-btn secondary">✕</button>
+            </div>
+          </div>
+          
+          <!-- Abas de Navegação -->
+          <div class="cardapio-tabs" style="background:rgba(255,255,255,0.05);display:flex;border-bottom:1px solid rgba(255,255,255,0.2);">
+            <button class="tab-btn active" data-tab="visualizar" style="flex:1;padding:15px;background:transparent;border:0;color:#fff;cursor:pointer;border-bottom:3px solid #3498db;font-weight:bold;transition:all 0.3s ease;">
+              📋 Visualizar & Editar
+            </button>
+            <button class="tab-btn" data-tab="adicionar" style="flex:1;padding:15px;background:transparent;border:0;color:rgba(255,255,255,0.6);cursor:pointer;border-bottom:3px solid transparent;font-weight:bold;transition:all 0.3s ease;">
+              ➕ Adicionar Item
+            </button>
+            <button class="tab-btn" data-tab="mapeamentos" style="flex:1;padding:15px;background:transparent;border:0;color:rgba(255,255,255,0.6);cursor:pointer;border-bottom:3px solid transparent;font-weight:bold;transition:all 0.3s ease;">
+              🔗 Mapeamentos
+            </button>
+            <button class="tab-btn" data-tab="configuracoes" style="flex:1;padding:15px;background:transparent;border:0;color:rgba(255,255,255,0.6);cursor:pointer;border-bottom:3px solid transparent;font-weight:bold;transition:all 0.3s ease;">
+              ⚙️ Configurações
+            </button>
+          </div>
+          
+          <div class="modal-body" style="padding:0;height:calc(100% - 140px);overflow:hidden;">
+            <!-- Aba Visualizar & Editar -->
+            <div id="tab-visualizar" class="tab-content active" style="height:100%;padding:20px;overflow-y:auto;">
+              <!-- Barra de Ferramentas -->
+              <div class="toolbar" style="display:flex;gap:15px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
+                <div style="display:flex;gap:10px;align-items:center;">
+                  <input type="text" id="buscar-item-unified" placeholder="🔍 Buscar item..." style="padding:12px 16px;border:1px solid rgba(255,255,255,0.2);border-radius:12px;background:rgba(255,255,255,0.1);color:#fff;width:250px;">
+                  <select id="filtro-tipo-unified" style="padding:12px 16px;border:1px solid rgba(255,255,255,0.2);border-radius:12px;background:rgba(255,255,255,0.1);color:#fff;">
+                    <option value="">Todos os tipos</option>
+                    <option value="Lanche">🍔 Lanches</option>
+                    <option value="Bebida">🥤 Bebidas</option>
+                    <option value="Adicional">🧀 Adicionais</option>
+                    <option value="Sobremesa">🍰 Sobremesas</option>
+                  </select>
+                </div>
+                <div style="display:flex;gap:10px;">
+                  <button id="refresh-cardapio-unified" class="icon-btn" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;">🔄 Atualizar</button>
+                  <button id="export-cardapio" class="icon-btn" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;">📤 Exportar</button>
+                  <button id="import-cardapio" class="icon-btn" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;">📥 Importar</button>
+                </div>
+              </div>
+              
+              <!-- Lista de Itens com Edição Inline -->
+              <div id="lista-cardapio-unified" style="display:grid;gap:15px;"></div>
+              
+              <!-- Botão de Teste -->
+              <div style="margin-top:20px;padding:15px;background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.3);border-radius:8px;">
+                <h4 style="color:#fff;margin:0 0 10px 0;">🔧 Teste de Debug</h4>
+                <button onclick="console.log('Teste: cardapioManager existe?', !!window.cardapioManager); if(window.cardapioManager) { console.log('Teste: chamando editItem com ID teste'); window.cardapioManager.editItem('teste'); } else { console.log('Erro: cardapioManager não encontrado!'); }" style="background:#ff6b6b;color:#fff;border:0;padding:8px 12px;border-radius:4px;cursor:pointer;">🧪 Testar editItem</button>
+                <button onclick="console.log('cardapioManager:', window.cardapioManager); console.log('cardapioData:', window.cardapioManager?.cardapioData);" style="background:#4ecdc4;color:#fff;border:0;padding:8px 12px;border-radius:4px;cursor:pointer;margin-left:10px;">📊 Ver Dados</button>
+              </div>
+            </div>
+            
+            <!-- Aba Adicionar Item -->
+            <div id="tab-adicionar" class="tab-content" style="height:100%;padding:20px;overflow-y:auto;display:none;">
+              <div style="max-width:600px;margin:0 auto;">
+                <h3 style="color:#fff;margin-bottom:20px;font-size:20px;font-weight:600;">➕ Adicionar Novo Item</h3>
+                
+                <div style="display:grid;gap:15px;">
+                  <div>
+                    <label style="color:#fff;display:block;margin-bottom:5px;font-weight:500;">Nome do Item *</label>
+                    <input type="text" id="item-nome-unified" placeholder="Ex: X-Bacon Especial" style="width:100%;padding:12px 16px;border:1px solid rgba(255,255,255,0.2);border-radius:12px;background:rgba(255,255,255,0.1);color:#fff;">
+                  </div>
+                  
+                  <div>
+                    <label style="color:#fff;display:block;margin-bottom:5px;font-weight:500;">Descrição</label>
+                    <textarea id="item-desc-unified" placeholder="Descrição detalhada do item..." style="width:100%;padding:12px 16px;border:1px solid rgba(255,255,255,0.2);border-radius:12px;background:rgba(255,255,255,0.1);color:#fff;height:80px;resize:vertical;"></textarea>
+                  </div>
+                  
+                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;">
+                    <div>
+                      <label style="color:#fff;display:block;margin-bottom:5px;font-weight:500;">Preço (R$) *</label>
+                      <input type="number" id="item-preco-unified" step="0.01" min="0" placeholder="0.00" style="width:100%;padding:12px 16px;border:1px solid rgba(255,255,255,0.2);border-radius:12px;background:rgba(255,255,255,0.1);color:#fff;">
+                    </div>
+                    
+                    <div>
+                      <label style="color:#fff;display:block;margin-bottom:5px;font-weight:500;">Tipo *</label>
+                      <select id="item-tipo-unified" style="width:100%;padding:12px 16px;border:1px solid rgba(255,255,255,0.2);border-radius:12px;background:rgba(255,255,255,0.1);color:#fff;">
+                        <option value="Lanche">🍔 Lanche</option>
+                        <option value="Bebida">🥤 Bebida</option>
+                        <option value="Adicional">🧀 Adicional</option>
+                        <option value="Sobremesa">🍰 Sobremesa</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label style="color:#fff;display:block;margin-bottom:5px;font-weight:500;">ID (opcional)</label>
+                      <input type="text" id="item-id-unified" placeholder="Auto" style="width:100%;padding:12px 16px;border:1px solid rgba(255,255,255,0.2);border-radius:12px;background:rgba(255,255,255,0.1);color:#fff;">
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label style="color:#fff;display:block;margin-bottom:5px;font-weight:500;">Gatilhos (separados por vírgula)</label>
+                    <input type="text" id="item-gatilhos-unified" placeholder="x-bacon, bacon, especial" style="width:100%;padding:12px 16px;border:1px solid rgba(255,255,255,0.2);border-radius:12px;background:rgba(255,255,255,0.1);color:#fff;">
+                    <small style="color:rgba(255,255,255,0.6);font-size:12px;">Palavras-chave que os clientes podem usar para encontrar este item</small>
+                  </div>
+                  
+                  <div style="display:flex;gap:10px;margin-top:20px;">
+                    <button id="salvar-item-unified" class="icon-btn" style="flex:1;background:linear-gradient(135deg,#10b981,#059669);color:#fff;padding:15px;font-weight:bold;">✅ Salvar Item</button>
+                    <button id="limpar-form-unified" class="icon-btn secondary" style="padding:15px 20px;">🗑️ Limpar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Aba Mapeamentos -->
+            <div id="tab-mapeamentos" class="tab-content" style="height:100%;padding:20px;overflow-y:auto;display:none;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:30px;height:100%;">
+                <!-- Lista de Mapeamentos -->
+                <div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                    <h3 style="color:#fff;margin:0;font-size:18px;font-weight:600;">🔗 Mapeamentos Ativos</h3>
+                    <button id="refresh-mapeamentos-unified" class="icon-btn" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;padding:8px 12px;">🔄</button>
+                  </div>
+                  <div id="lista-mapeamentos-unified" style="max-height:calc(100% - 50px);overflow-y:auto;"></div>
+                </div>
+                
+                <!-- Adicionar Mapeamento -->
+                <div>
+                  <h3 style="color:#fff;margin-bottom:15px;font-size:18px;font-weight:600;">➕ Adicionar Mapeamento</h3>
+                  
+                  <div style="display:grid;gap:15px;">
+                    <div>
+                      <label style="color:#fff;display:block;margin-bottom:5px;font-weight:500;">Gatilho *</label>
+                      <input type="text" id="novo-gatilho-unified" placeholder="Ex: x-bacon" style="width:100%;padding:12px 16px;border:1px solid rgba(255,255,255,0.2);border-radius:12px;background:rgba(255,255,255,0.1);color:#fff;">
+                    </div>
+                    
+                    <div>
+                      <label style="color:#fff;display:block;margin-bottom:5px;font-weight:500;">ID do Item *</label>
+                      <input type="text" id="novo-item-id-unified" placeholder="Ex: 52" style="width:100%;padding:12px 16px;border:1px solid rgba(255,255,255,0.2);border-radius:12px;background:rgba(255,255,255,0.1);color:#fff;">
+                    </div>
+                    
+                    <button id="adicionar-mapeamento-unified" class="icon-btn" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;padding:12px;font-weight:bold;">✅ Adicionar Mapeamento</button>
+                    
+                    <hr style="border:1px solid rgba(255,255,255,0.2);margin:20px 0;">
+                    
+                    <h4 style="color:#fff;margin-bottom:10px;font-size:16px;font-weight:600;">📝 Múltiplos Gatilhos</h4>
+                    <div>
+                      <label style="color:#fff;display:block;margin-bottom:5px;font-weight:500;">Nome do Item</label>
+                      <input type="text" id="cardapio-nome-unified" placeholder="Ex: X-Bacon" style="width:100%;padding:12px 16px;border:1px solid rgba(255,255,255,0.2);border-radius:12px;background:rgba(255,255,255,0.1);color:#fff;">
+                    </div>
+                    
+                    <div>
+                      <label style="color:#fff;display:block;margin-bottom:5px;font-weight:500;">ID do Item</label>
+                      <input type="text" id="cardapio-id-unified" placeholder="Ex: 52" style="width:100%;padding:12px 16px;border:1px solid rgba(255,255,255,0.2);border-radius:12px;background:rgba(255,255,255,0.1);color:#fff;">
+                    </div>
+                    
+                    <div>
+                      <label style="color:#fff;display:block;margin-bottom:5px;font-weight:500;">Gatilhos (separados por vírgula)</label>
+                      <textarea id="cardapio-gatilhos-unified" placeholder="x-bacon, bacon, especial, x bacon" style="width:100%;padding:12px 16px;border:1px solid rgba(255,255,255,0.2);border-radius:12px;background:rgba(255,255,255,0.1);color:#fff;height:80px;resize:vertical;"></textarea>
+                    </div>
+                    
+                    <button id="adicionar-multiplos-gatilhos-unified" class="icon-btn" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:12px;font-weight:bold;">🔗 Adicionar Múltiplos</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Aba Configurações -->
+            <div id="tab-configuracoes" class="tab-content" style="height:100%;padding:20px;overflow-y:auto;display:none;">
+              <div style="max-width:800px;margin:0 auto;">
+                <h3 style="color:#fff;margin-bottom:20px;font-size:20px;font-weight:600;">⚙️ Configurações do Sistema</h3>
+                
+                <div style="display:grid;gap:20px;">
+                  <div style="background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);padding:20px;border-radius:12px;">
+                    <h4 style="color:#fff;margin-bottom:15px;font-size:16px;font-weight:600;">💾 Backup & Restauração</h4>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                      <button id="backup-cardapio" class="icon-btn" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;">📤 Fazer Backup</button>
+                      <button id="backup-mapeamentos" class="icon-btn" style="background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;">🧠 Backup Mapeamentos</button>
+                      <button id="restore-cardapio" class="icon-btn" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;">📥 Restaurar</button>
+                      <button id="restore-mapeamentos" class="icon-btn" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;">🧠 Restaurar Mapeamentos</button>
+                      <button id="reset-cardapio" class="icon-btn danger">🗑️ Resetar Tudo</button>
+                    </div>
+                  </div>
+                  
+                  <div style="background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);padding:20px;border-radius:12px;">
+                    <h4 style="color:#fff;margin-bottom:15px;font-size:16px;font-weight:600;">🔄 Sincronização</h4>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                      <button id="sync-servidor" class="icon-btn" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;">🔄 Sincronizar com Servidor</button>
+                      <button id="force-reload" class="icon-btn" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;">⚡ Recarregar Forçado</button>
+                    </div>
+                  </div>
+                  
+                  <div style="background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);padding:20px;border-radius:12px;">
+                    <h4 style="color:#fff;margin-bottom:15px;font-size:16px;font-weight:600;">📊 Estatísticas</h4>
+                    <div id="cardapio-stats" style="color:rgba(255,255,255,0.6);">Carregando estatísticas...</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+  <!-- Modal do QR Code -->
+  <div id="qr-modal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(20px); align-items:center; justify-content:center; z-index:3000;">
+    <div style="background:rgba(255,255,255,0.1); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.2); color:#fff; width:420px; max-width:95%; border-radius:16px; padding:24px; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <h2 style="margin:0;font-size:20px;font-weight:600;">📱 Ativar Bot WhatsApp</h2>
+        <button id="qr-close" class="icon-btn secondary">✕</button>
+      </div>
+      
+      <!-- Status do WhatsApp -->
+      <div id="whatsapp-status" class="whatsapp-status status-connecting" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px;margin-bottom:20px;background:rgba(255,193,7,0.2);border:1px solid rgba(255,193,7,0.3);">
+        <div class="status-indicator" style="width:12px;height:12px;border-radius:50%;background:#ffc107;animation:pulse 2s infinite;"></div>
+        <span id="status-text" style="font-weight:500;">Carregando...</span>
+      </div>
+      
+      <!-- QR Code Container -->
+      <div id="qr-code" style="text-align:center;padding:20px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;margin-bottom:20px;min-height:200px;display:flex;align-items:center;justify-content:center;">
+        Carregando QR Code...
+      </div>
+      
+      <!-- Botões de Ação -->
+      <div class="qr-actions" style="display:flex;gap:12px;justify-content:center;">
+        <button id="refresh-qr" class="qr-action-btn btn-refresh" style="flex:1;padding:12px;border:1px solid rgba(59,130,246,0.3);background:rgba(59,130,246,0.2);color:#3b82f6;border-radius:8px;font-weight:500;transition:all 0.3s ease;">🔄 Atualizar</button>
+        <button id="restart-whatsapp" class="qr-action-btn btn-restart" style="flex:1;padding:12px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.2);color:#ef4444;border-radius:8px;font-weight:500;transition:all 0.3s ease;">🔄 Reiniciar</button>
+      </div>
+      
+      <p style="text-align:center;margin-top:16px;font-size:14px;color:rgba(255,255,255,0.7);">
+        Escaneie o QR Code com WhatsApp para ativar o bot
+      </p>
+    </div>
+  </div>
+
+  <style>
+    /* Estilos para o sistema de QR Code */
+    .whatsapp-status {
+      transition: all 0.3s ease;
+    }
+    
+    .status-connecting {
+      background: rgba(255, 193, 7, 0.2) !important;
+      border-color: rgba(255, 193, 7, 0.3) !important;
+    }
+    
+    .status-connecting .status-indicator {
+      background: #ffc107 !important;
+    }
+    
+    .status-connected {
+      background: rgba(16, 185, 129, 0.2) !important;
+      border-color: rgba(16, 185, 129, 0.3) !important;
+    }
+    
+    .status-connected .status-indicator {
+      background: #10b981 !important;
+      animation: none !important;
+    }
+    
+    .status-error {
+      background: rgba(239, 68, 68, 0.2) !important;
+      border-color: rgba(239, 68, 68, 0.3) !important;
+    }
+    
+    .status-error .status-indicator {
+      background: #ef4444 !important;
+      animation: none !important;
+    }
+    
+    .qr-action-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    .qr-action-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+    
+    .btn-refresh:hover {
+      background: rgba(59, 130, 246, 0.3) !important;
+    }
+    
+    .btn-restart:hover {
+      background: rgba(239, 68, 68, 0.3) !important;
+    }
+    
+    .loading-spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top: 3px solid #fff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      margin-right: 8px;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/pedidos.js"></script>
+  
+  <script>
+    // Sistema Multi-Tenant - Detecção de Restaurante
+    let currentRestaurantId = 'brutus-burger';
+    
+    function detectRestaurantId() {
+      // 1. PRIORIDADE: Verificar query parameter: ?restaurant=restaurantId
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('restaurant')) {
+        console.log('Restaurante detectado via query parameter:', params.get('restaurant'));
+        return params.get('restaurant');
+      }
+      
+      // 2. NOVA: Verificar URL personalizada: pedidos-(clienteId).html
+      const pathname = window.location.pathname;
+      const personalizedMatch = pathname.match(/\/pedidos-([^.]+)\.html/);
+      if (personalizedMatch) {
+        const clienteId = personalizedMatch[1];
+        console.log('Restaurante detectado via URL personalizada:', clienteId);
+        return clienteId;
+      }
+      
+      // 3. Verificar URL path: /r/{restaurantId}/pedidos ou /restaurant/{restaurantId}/pedidos
+      const urlParts = window.location.pathname.split('/');
+      if (urlParts[1] === 'r' && urlParts[2]) {
+        console.log('Restaurante detectado via path /r/:', urlParts[2]);
+        return urlParts[2];
+      }
+      if (urlParts[1] === 'restaurant' && urlParts[2]) {
+        console.log('Restaurante detectado via path /restaurant/:', urlParts[2]);
+        return urlParts[2];
+      }
+      
+      // 4. Verificar subdomain: restaurantId.domain.com
+      const host = window.location.host;
+      if (host && host.includes('.')) {
+        const subdomain = host.split('.')[0];
+        if (subdomain !== 'www' && subdomain !== 'localhost') {
+          console.log('Restaurante detectado via subdomain:', subdomain);
+          return subdomain;
+        }
+      }
+      
+      // 5. SE CHEGOU AQUI SEM PARÂMETRO: Redirecionar para seleção (EXCETO se for URL personalizada)
+      console.warn('Nenhum restaurante especificado - redirecionando para seleção');
+      if (window.location.pathname !== '/selecionar-restaurante.html' && !pathname.includes('pedidos-')) {
+        window.location.href = '/pedidos';
+        return null;
+      }
+      
+      // 6. Fallback apenas se for acesso direto ao arquivo
+      return 'brutus-burger';
+    }
+    
+    // Inicializar restaurantId
+    currentRestaurantId = detectRestaurantId();
+    console.log('Restaurant ID detectado:', currentRestaurantId);
+    
+    // Disponibilizar globalmente para o pedidos.js
+    window.currentRestaurantId = currentRestaurantId;
+
+    // Bot Toggle - Estado inicial e controle
+    let botStatus = true; // Padrão: ativo
+    const botToggleBtn = document.getElementById('btn-bot-toggle');
+
+    // Função para atualizar aparência do botão
+    function updateBotToggleButton(status) {
+      botStatus = status;
+      if (status) {
+        botToggleBtn.style.background = '#2ecc71';
+        botToggleBtn.textContent = '🤖 Bot: ATIVO';
+        botToggleBtn.title = 'Clique para DESATIVAR o auto atendimento';
+      } else {
+        botToggleBtn.style.background = '#e74c3c';
+        botToggleBtn.textContent = '🤖 Bot: INATIVO';
+        botToggleBtn.title = 'Clique para ATIVAR o auto atendimento';
+      }
+    }
+
+    // Event listener para toggle do bot
+    botToggleBtn.addEventListener('click', async () => {
+      const newStatus = !botStatus;
+      
+      try {
+        const response = await fetch('/api/admin/bot-toggle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            restaurantId: currentRestaurantId, 
+            status: newStatus 
+          })
+        });
+        
+        const result = await response.json();
+        if (result.ok) {
+          updateBotToggleButton(newStatus);
+          console.log(`Bot ${newStatus ? 'ATIVADO' : 'DESATIVADO'} para ${currentRestaurantId}`);
+          
+          // Mostrar notificação
+          const notification = document.createElement('div');
+          notification.style.cssText = `
+            position: fixed; top: 20px; right: 20px; z-index: 9999;
+            background: ${newStatus ? '#2ecc71' : '#e74c3c'}; color: white; padding: 12px 20px;
+            border-radius: 8px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          `;
+          notification.textContent = `🤖 Bot ${newStatus ? 'ATIVADO' : 'DESATIVADO'}!`;
+          document.body.appendChild(notification);
+          
+          setTimeout(() => notification.remove(), 3000);
+        } else {
+          console.error('Erro ao alterar status do bot:', result.error);
+          alert('Erro ao alterar status do bot: ' + result.error);
+        }
+      } catch (err) {
+        console.error('Erro na requisição:', err);
+        alert('Erro na comunicação com o servidor');
+      }
+    });
+
+    // Carregar status inicial do bot
+    async function loadBotStatus() {
+      try {
+        const response = await fetch(`/api/admin/bot-status?restaurantId=${currentRestaurantId}`);
+        const result = await response.json();
+        if (result.ok) {
+          updateBotToggleButton(result.status);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar status do bot:', err);
+      }
+    }
+    
+    // Carregar status do bot na inicialização
+    loadBotStatus();
+
+    // Dashboard Modal
+    document.getElementById('btn-dashboard').addEventListener('click', () => {
+      document.getElementById('dashboard-modal').style.display = 'flex';
+      loadDashboardData();
+    });
+
+    document.getElementById('dashboard-close').addEventListener('click', () => {
+      document.getElementById('dashboard-modal').style.display = 'none';
+    });
+
+    document.getElementById('dashboard-refresh').addEventListener('click', () => {
+      loadDashboardData();
+    });
+
+    // Botão Painel de Mensagens
+    document.getElementById('btn-mensagens').addEventListener('click', () => {
+      window.open('/painel-mensagens.html', '_blank');
+    });
+
+    // Botões de Backup & Restauração
+    document.getElementById('backup-cardapio').addEventListener('click', async () => {
+      try {
+        const response = await fetch(`/api/admin/backup-cardapio?restaurantId=${currentRestaurantId}`);
+        const result = await response.json();
+        
+        if (result.ok) {
+          // Criar e baixar arquivo de backup
+          const dataStr = JSON.stringify(result.data, null, 2);
+          const dataBlob = new Blob([dataStr], {type: 'application/json'});
+          const url = URL.createObjectURL(dataBlob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `backup-cardapio-${currentRestaurantId}-${new Date().toISOString().split('T')[0]}.json`;
+          link.click();
+          URL.revokeObjectURL(url);
+          
+          alert('✅ Backup do cardápio realizado com sucesso!');
+        } else {
+          alert('❌ Erro ao fazer backup: ' + result.error);
+        }
+      } catch (error) {
+        console.error('Erro ao fazer backup:', error);
+        alert('❌ Erro ao comunicar com o servidor');
+      }
+    });
+
+    document.getElementById('backup-mapeamentos').addEventListener('click', async () => {
+      try {
+        const response = await fetch(`/api/admin/backup-mapeamentos?restaurantId=${currentRestaurantId}`);
+        const result = await response.json();
+        
+        if (result.ok) {
+          // Criar e baixar arquivo de backup
+          const dataStr = JSON.stringify(result.data, null, 2);
+          const dataBlob = new Blob([dataStr], {type: 'application/json'});
+          const url = URL.createObjectURL(dataBlob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `backup-mapeamentos-${currentRestaurantId}-${new Date().toISOString().split('T')[0]}.json`;
+          link.click();
+          URL.revokeObjectURL(url);
+          
+          alert('🧠 Backup dos mapeamentos IA realizado com sucesso!');
+        } else {
+          alert('❌ Erro ao fazer backup: ' + result.error);
+        }
+      } catch (error) {
+        console.error('Erro ao fazer backup:', error);
+        alert('❌ Erro ao comunicar com o servidor');
+      }
+    });
+
+    document.getElementById('restore-cardapio').addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        try {
+          const text = await file.text();
+          const data = JSON.parse(text);
+          
+          const response = await fetch('/api/admin/restore-cardapio', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ restaurantId: currentRestaurantId, data })
+          });
+          
+          const result = await response.json();
+          if (result.ok) {
+            alert('✅ Cardápio restaurado com sucesso!');
+            location.reload();
+          } else {
+            alert('❌ Erro ao restaurar: ' + result.error);
+          }
+        } catch (error) {
+          console.error('Erro ao restaurar:', error);
+          alert('❌ Erro ao processar arquivo');
+        }
+      };
+      input.click();
+    });
+
+    document.getElementById('restore-mapeamentos').addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        try {
+          const text = await file.text();
+          const data = JSON.parse(text);
+          
+          // Debug: mostrar estrutura do arquivo
+          console.log('📄 Estrutura do arquivo carregado:', data);
+          console.log('📄 Tipo do arquivo:', typeof data);
+          console.log('📄 Chaves do arquivo:', Object.keys(data));
+          console.log('📄 Propriedade mappings:', data.mappings);
+          console.log('📄 Tipo da propriedade mappings:', typeof data.mappings);
+          console.log('📄 É array?', Array.isArray(data.mappings));
+          console.log('📄 Tamanho se for array:', data.mappings ? data.mappings.length : 'N/A');
+          
+          // Verificar diferentes estruturas de arquivo de mapeamentos
+          let mappings = null;
+          let debugInfo = '';
+          
+          // Estrutura 1: { mappings: [...] } - backup direto
+          if (data.mappings && Array.isArray(data.mappings)) {
+            console.log('✅ Estrutura 1 detectada! Mapeamentos:', data.mappings.length);
+            mappings = data.mappings;
+            debugInfo = 'Estrutura 1: { mappings: [...] }';
+          }
+          // Estrutura 2: { data: { mappings: [...] } } - backup aninhado
+          else if (data.data && data.data.mappings && Array.isArray(data.data.mappings)) {
+            mappings = data.data.mappings;
+            debugInfo = 'Estrutura 2: { data: { mappings: [...] } }';
+          }
+          // Estrutura 3: Array direto de mapeamentos
+          else if (Array.isArray(data)) {
+            mappings = data;
+            debugInfo = 'Estrutura 3: Array direto';
+          }
+          // Estrutura 4: Tentar encontrar qualquer array que pareça com mapeamentos
+          else {
+            // Procurar por qualquer propriedade que seja um array
+            for (const key in data) {
+              if (Array.isArray(data[key]) && data[key].length > 0) {
+                const firstItem = data[key][0];
+                if (firstItem && (firstItem.item_id || firstItem.itemId) && (firstItem.palavra_chave || firstItem.keyword)) {
+                  mappings = data[key];
+                  debugInfo = `Estrutura encontrada: { "${key}": [...] }`;
+                  break;
+                }
+              }
+            }
+          }
+          
+          console.log('🔍 Debug info:', debugInfo);
+          console.log('📊 Mapeamentos encontrados:', mappings ? mappings.length : 0);
+          
+          if (!mappings || !Array.isArray(mappings) || mappings.length === 0) {
+            const estruturaAtual = JSON.stringify(data, null, 2).substring(0, 500) + '...';
+            alert(
+              `❌ Arquivo inválido: não foi possível encontrar mapeamentos válidos.\n\n` +
+              `📋 Estrutura do seu arquivo:\n${estruturaAtual}\n\n` +
+              `✅ Formatos aceitos:\n` +
+              `• { "mappings": [...] }\n` +
+              `• { "data": { "mappings": [...] } }\n` +
+              `• Array direto [...]\n\n` +
+              `💡 Dica: Faça backup dos mapeamentos atuais primeiro para ver a estrutura correta!`
+            );
+            return;
+          }
+          
+          // Validar estrutura dos mapeamentos
+          if (mappings.length > 0) {
+            const firstMapping = mappings[0];
+            console.log('🔍 Primeiro mapeamento:', firstMapping);
+            
+            if (!firstMapping.item_id && !firstMapping.itemId) {
+              alert('❌ Formato de mapeamento inválido: cada mapeamento deve ter "item_id" ou "itemId"');
+              return;
+            }
+            
+            if (!firstMapping.palavra_chave && !firstMapping.keyword) {
+              alert('❌ Formato de mapeamento inválido: cada mapeamento deve ter "palavra_chave" ou "keyword"');
+              return;
+            }
+          } else {
+            alert('❌ Array de mapeamentos está vazio');
+            return;
+          }
+          
+          const response = await fetch('/api/admin/restore-mapeamentos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              restaurantId: currentRestaurantId, 
+              data: { mappings: mappings }
+            })
+          });
+          
+          const result = await response.json();
+          if (result.ok) {
+            alert(`🧠 Mapeamentos restaurados com sucesso! ${result.mappingsRestored} de ${result.totalMappings} mapeamentos adicionados.`);
+            location.reload();
+          } else {
+            alert('❌ Erro ao restaurar: ' + result.error);
+          }
+        } catch (error) {
+          console.error('Erro ao restaurar:', error);
+          alert('❌ Erro ao processar arquivo: ' + error.message);
+        }
+      };
+      input.click();
+    });
+
+    document.getElementById('reset-cardapio').addEventListener('click', async () => {
+      if (!confirm('⚠️ ATENÇÃO: Isso irá DELETAR TODOS os itens do cardápio!\n\nEsta ação NÃO pode ser desfeita.\n\nTem certeza que deseja continuar?')) {
+        return;
+      }
+      
+      if (!confirm('🚨 ÚLTIMA CONFIRMAÇÃO!\n\nVocê está prestes a APAGAR TUDO do cardápio.\n\nClique OK para DELETAR ou Cancelar para ABORTAR.')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/admin/reset-cardapio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ restaurantId: currentRestaurantId })
+        });
+        
+        const result = await response.json();
+        if (result.ok) {
+          alert('🗑️ Cardápio resetado com sucesso!');
+          location.reload();
+        } else {
+          alert('❌ Erro ao resetar: ' + result.error);
+        }
+      } catch (error) {
+        console.error('Erro ao resetar:', error);
+        alert('❌ Erro ao comunicar com o servidor');
+      }
+    });
+
+    // Função para carregar dados do dashboard
+        async function loadDashboardData() {
+          try {
+            // Usar restaurantId nas chamadas de API
+            const apiUrl = `/api/pedidos/totais-dia?restaurant=${currentRestaurantId}`;
+            
+            const response = await fetch(apiUrl);
+            const data = await response.json();
+            
+            const totalProdutos = parseFloat(data.totalProdutos) || 0;
+            const totalEntregas = parseFloat(data.totalEntregas) || 0;
+            const totalGeral = totalProdutos + totalEntregas;
+            
+            document.getElementById('dashboard-total-geral').textContent = totalGeral.toFixed(2);
+            document.getElementById('dashboard-total-produtos').textContent = totalProdutos.toFixed(2);
+            document.getElementById('dashboard-total-entregas').textContent = totalEntregas.toFixed(2);
+          } catch (error) {
+            console.error('Erro ao carregar dados do dashboard:', error);
+            alert('Erro ao carregar dados do dashboard');
+          }
+        }
+
+        // Função para verificar se o dashboard está aberto e atualizar automaticamente
+        function updateDashboardIfOpen() {
+          const dashboardModal = document.getElementById('dashboard-modal');
+          if (dashboardModal && dashboardModal.style.display === 'flex') {
+            loadDashboardData();
+          }
+        }
+
+        // Atualização periódica do dashboard quando estiver aberto (a cada 10 segundos)
+        setInterval(() => {
+          updateDashboardIfOpen();
+        }, 10000);
+
+    // Sistema de QR Code WhatsApp
+    class WhatsAppQRManager {
+        constructor() {
+            console.log('🏗️ Construindo WhatsAppQRManager...');
+            console.log('🏪 currentRestaurantId no construtor:', currentRestaurantId);
+            this.restaurantId = currentRestaurantId;
+            this.statusCheckInterval = null;
+            console.log('🔧 Inicializando QR Code...');
+            this.initQRCode();
+        }
+
+        initQRCode() {
+            console.log('🔧 Inicializando elementos do QR Code...');
+            const qrButton = document.getElementById('qr-button');
+            const qrModal = document.getElementById('qr-modal');
+            const qrClose = document.getElementById('qr-close');
+            const refreshBtn = document.getElementById('refresh-qr');
+            const restartBtn = document.getElementById('restart-whatsapp');
+            
+            console.log('🔍 Elementos encontrados:');
+            console.log('  - qrButton:', !!qrButton);
+            console.log('  - qrModal:', !!qrModal);
+            console.log('  - qrClose:', !!qrClose);
+            console.log('  - refreshBtn:', !!refreshBtn);
+            console.log('  - restartBtn:', !!restartBtn);
+
+            // Abrir modal
+            qrButton.addEventListener('click', () => {
+                qrModal.style.display = 'flex';
+                this.loadWhatsAppQR();
+                this.startStatusCheck();
+            });
+
+            // Fechar modal
+            qrClose.addEventListener('click', () => {
+                this.closeQRModal();
+            });
+
+            // Fechar modal clicando fora
+            qrModal.addEventListener('click', (e) => {
+                if (e.target === qrModal) {
+                    this.closeQRModal();
+                }
+            });
+
+            // Fechar modal com ESC
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && qrModal.style.display === 'flex') {
+                    this.closeQRModal();
+                }
+            });
+
+            // Botão atualizar
+            refreshBtn.addEventListener('click', () => {
+                this.loadWhatsAppQR();
+            });
+
+            // Botão reiniciar
+            restartBtn.addEventListener('click', () => {
+                this.restartWhatsApp();
+            });
+        }
+
+        closeQRModal() {
+            const qrModal = document.getElementById('qr-modal');
+            qrModal.style.display = 'none';
+            if (this.statusCheckInterval) {
+                clearInterval(this.statusCheckInterval);
+                this.statusCheckInterval = null;
+            }
+        }
+
+        async loadWhatsAppQR() {
+            try {
+                console.log('🔍 Iniciando loadWhatsAppQR...');
+                console.log('🏪 Restaurant ID:', this.restaurantId);
+                
+                const qrCodeContainer = document.getElementById('qr-code');
+                const refreshBtn = document.getElementById('refresh-qr');
+                
+                if (!qrCodeContainer) {
+                    console.error('❌ Elemento qr-code não encontrado!');
+                    return;
+                }
+                
+                refreshBtn.disabled = true;
+                qrCodeContainer.innerHTML = '<div class="loading-spinner"></div> Carregando QR Code...';
+                this.updateWhatsAppStatus('connecting', 'Carregando QR Code...');
+
+                const apiUrl = `/api/whatsapp/qrcode/${this.restaurantId}`;
+                console.log('🌐 Fazendo requisição para:', apiUrl);
+                
+                const response = await fetch(apiUrl);
+                console.log('📡 Response status:', response.status);
+                
+                const data = await response.json();
+                console.log('📦 Response data:', data);
+
+                if (data.ok && data.qrcode) {
+                    qrCodeContainer.innerHTML = `<img src="data:image/png;base64,${data.qrcode}" alt="QR Code WhatsApp" style="width: 100%; height: auto; max-width: 280px;">`;
+                    this.updateWhatsAppStatus('connecting', 'Escaneie o QR Code com WhatsApp');
+                } else {
+                    await this.checkWhatsAppStatus();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar QR Code:', error);
+                this.updateWhatsAppStatus('error', 'Erro ao carregar QR Code');
+                document.getElementById('qr-code').innerHTML = '❌ Erro ao carregar QR Code';
+            } finally {
+                document.getElementById('refresh-qr').disabled = false;
+            }
+        }
+
+        async checkWhatsAppStatus() {
+            try {
+                console.log('🔍 Verificando status do WhatsApp...');
+                const statusUrl = `/api/whatsapp/status/${this.restaurantId}`;
+                console.log('🌐 URL do status:', statusUrl);
+                
+                const response = await fetch(statusUrl);
+                console.log('📡 Status response:', response.status);
+                
+                const data = await response.json();
+                console.log('📦 Status data:', data);
+
+                if (data.ok && data.status) {
+                    if (data.status.connected) {
+                        this.updateWhatsAppStatus('connected', '✅ WhatsApp conectado!');
+                        document.getElementById('qr-code').innerHTML = '<div style="text-align: center; padding: 40px; color: #10b981;"><h3>✅ Bot Conectado!</h3><p>O WhatsApp está funcionando</p></div>';
+                        // Parar verificação automática se conectado
+                        if (this.statusCheckInterval) {
+                            clearInterval(this.statusCheckInterval);
+                            this.statusCheckInterval = null;
+                        }
+                    } else if (data.status.hasQR) {
+                        this.updateWhatsAppStatus('connecting', 'QR Code disponível');
+                        this.loadWhatsAppQR();
+                    } else if (data.status.needsQR) {
+                        this.updateWhatsAppStatus('connecting', 'Gerando novo QR Code...');
+                        setTimeout(() => this.loadWhatsAppQR(), 2000);
+                    } else {
+                        this.updateWhatsAppStatus('connecting', 'Conectando...');
+                    }
+                } else {
+                    this.updateWhatsAppStatus('error', 'Bot offline - Verifique o servidor');
+                    document.getElementById('qr-code').innerHTML = '<div style="text-align: center; padding: 40px; color: #ef4444;"><h3>🔌 Bot Offline</h3><p>Verifique se o servidor está rodando</p></div>';
+                }
+            } catch (error) {
+                console.error('Erro ao verificar status:', error);
+                this.updateWhatsAppStatus('error', 'Erro de conexão com API');
+            }
+        }
+
+        async restartWhatsApp() {
+            try {
+                const restartBtn = document.getElementById('restart-whatsapp');
+                restartBtn.disabled = true;
+                
+                this.updateWhatsAppStatus('connecting', 'Reiniciando WhatsApp...');
+                document.getElementById('qr-code').innerHTML = '<div class="loading-spinner"></div> Reiniciando conexão...';
+
+                const response = await fetch('/api/whatsapp/restart', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ restaurantId: this.restaurantId })
+                });
+
+                const data = await response.json();
+                if (data.ok) {
+                    this.updateWhatsAppStatus('connecting', 'Aguardando novo QR Code...');
+                    setTimeout(() => this.loadWhatsAppQR(), 3000);
+                } else {
+                    this.updateWhatsAppStatus('error', 'Erro ao reiniciar');
+                }
+            } catch (error) {
+                console.error('Erro ao reiniciar WhatsApp:', error);
+                this.updateWhatsAppStatus('error', 'Erro ao reiniciar');
+            } finally {
+                setTimeout(() => {
+                    document.getElementById('restart-whatsapp').disabled = false;
+                }, 3000);
+            }
+        }
+
+        updateWhatsAppStatus(type, message) {
+            const statusElement = document.getElementById('whatsapp-status');
+            const statusText = document.getElementById('status-text');
+            
+            statusElement.className = `whatsapp-status status-${type}`;
+            statusText.textContent = message;
+        }
+
+        startStatusCheck() {
+            // Verificar status a cada 3 segundos
+            this.statusCheckInterval = setInterval(() => {
+                this.checkWhatsAppStatus();
+            }, 3000);
+            
+            // Verificação inicial
+            this.checkWhatsAppStatus();
+        }
+    }
+
+    // Inicializar sistema de QR Code quando a página carregar
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('🚀 Inicializando WhatsAppQRManager...');
+        console.log('🏪 currentRestaurantId disponível:', window.currentRestaurantId);
+        window.whatsappQRManager = new WhatsAppQRManager();
+        console.log('✅ WhatsAppQRManager inicializado!');
+    });
+  </script>
+  
+  <!-- Script de limpeza de cache agressiva -->
+  <script>
+    console.log('🧹 LIMPEZA DE CACHE - Iniciando limpeza agressiva...');
+    
+    // Função para extrair clienteId da URL (duplicada aqui para garantir funcionamento)
+    function forceExtractClienteIdFromUrl() {
+      // 1. Query parameter
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('restaurant')) {
+        console.log('🔍 [FORCE] ClienteId via query:', params.get('restaurant'));
+        return params.get('restaurant');
+      }
+      
+      // 2. URL filename pattern
+      const pathname = window.location.pathname;
+      const match = pathname.match(/\/pedidos-([^.]+)\.html/);
+      if (match) {
+        console.log('🔍 [FORCE] ClienteId via filename:', match[1]);
+        return match[1];
+      }
+      
+      return null;
+    }
+    
+    // Extrair clienteId da URL atual
+    const urlClienteId = forceExtractClienteIdFromUrl();
+    console.log('🔍 [FORCE] ClienteId extraído da URL:', urlClienteId);
+    
+    if (urlClienteId) {
+      // LIMPEZA TOTAL: Remover TODOS os valores relacionados do storage
+      console.log('🧹 [FORCE] Removendo TODOS os valores do sessionStorage...');
+      sessionStorage.removeItem('clienteId');
+      sessionStorage.removeItem('restaurantId');
+      sessionStorage.removeItem('currentRestaurant');
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('userAuth');
+      
+      console.log('🧹 [FORCE] Removendo TODOS os valores do localStorage...');
+      localStorage.removeItem('clienteId');
+      localStorage.removeItem('restaurantId');
+      localStorage.removeItem('currentRestaurant');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userAuth');
+      
+      // FORÇAR: Definir o clienteId correto no sessionStorage
+      console.log('✅ [FORCE] Definindo clienteId correto:', urlClienteId);
+      sessionStorage.setItem('clienteId', urlClienteId);
+      
+      // FORÇAR: Definir globalmente
+      window.currentRestaurantId = urlClienteId;
+      window.forcedClienteId = urlClienteId;
+      
+      console.log('✅ [FORCE] Cache limpo e clienteId definido:', urlClienteId);
+    } else {
+      console.warn('⚠️ [FORCE] Não foi possível extrair clienteId da URL');
+    }
+  </script>
+
+  <!-- Script de autenticação automática -->
+  <script src="js/auto-auth.js"></script>
+  
+  <!-- Script de informações do restaurante -->
+  <script src="js/restaurant-info.js"></script>
+</body>
+</html>

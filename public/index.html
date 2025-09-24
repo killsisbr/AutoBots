@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brutus Bot - Login</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            width: 100%;
+            max-width: 400px;
+            animation: slideUp 0.6s ease-out;
+            color: #000000 !important;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .login-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .login-header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .login-form {
+            padding: 40px 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #000000 !important;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        /* Força absoluta para labels serem pretas */
+        .login-container label,
+        .login-form label,
+        .form-group label {
+            color: #000000 !important;
+            font-weight: 600 !important;
+        }
+
+        /* Regra super específica para garantir texto preto */
+        body .login-container .login-form .form-group label {
+            color: #000000 !important;
+            text-shadow: none !important;
+        }
+
+        /* Garantir que não herde cor branca do body */
+        .login-container * {
+            color: inherit;
+        }
+        
+        .login-container .form-group label {
+            color: #000000 !important;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .alert-error {
+            background: #fee;
+            color: #c53030;
+            border: 1px solid #fed7d7;
+        }
+
+        .alert-success {
+            background: #f0fff4;
+            color: #22543d;
+            border: 1px solid #c6f6d5;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .demo-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .demo-info h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        .demo-info p {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .demo-credentials {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+        
+        .toggle-form {
+            text-align: center;
+            margin-top: 20px;
+            padding: 15px;
+        }
+        
+        .toggle-form a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .toggle-form a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .login-container {
+                margin: 10px;
+            }
+            
+            .login-header {
+                padding: 30px 20px;
+            }
+            
+            .login-form {
+                padding: 30px 20px;
+            }
+            
+            .login-header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>🍔 Sistema de Atendimento</h1>
+            <p id="headerText">Faça login para acessar o painel administrativo</p>
+        </div>
+        
+        <!-- Formulário de Login -->
+        <form id="loginForm" class="login-form">
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="senha">Senha:</label>
+                <input type="password" id="senha" name="senha" required>
+            </div>
+            
+            <button type="submit" class="login-btn">Entrar</button>
+            
+            <div class="demo-credentials">
+                <p><strong>Credenciais de demonstração:</strong></p>
+                <p>Email: admin@brutus.com</p>
+                <p>Senha: admin123</p>
+            </div>
+        </form>
+        
+        <!-- Formulário de Registro -->
+        <form id="registerForm" class="login-form" style="display: none;">
+            <div class="form-group">
+                <label for="nomeRestaurante">Nome do Restaurante:</label>
+                <input type="text" id="nomeRestaurante" name="nome" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="emailRegistro">Email:</label>
+                <input type="email" id="emailRegistro" name="email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="senhaRegistro">Senha:</label>
+                <input type="password" id="senhaRegistro" name="senha" required minlength="6">
+            </div>
+            
+            <button type="submit" class="login-btn">Registrar Restaurante</button>
+        </form>
+        
+        <div class="toggle-form">
+            <p id="toggleText">Não tem conta? <a href="#" id="toggleLink">Registre seu restaurante</a></p>
+        </div>
+        
+        <div id="message" class="message"></div>
+    </div>
+
+    <script>
+        let isLoginMode = true;
+        
+        // Elementos do DOM
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const toggleLink = document.getElementById('toggleLink');
+        const toggleText = document.getElementById('toggleText');
+        const headerText = document.getElementById('headerText');
+        const messageDiv = document.getElementById('message');
+        
+        // Alternar entre login e registro
+        toggleLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            isLoginMode = !isLoginMode;
+            
+            if (isLoginMode) {
+                loginForm.style.display = 'block';
+                registerForm.style.display = 'none';
+                toggleText.innerHTML = 'Não tem conta? <a href="#" id="toggleLink">Registre seu restaurante</a>';
+                headerText.textContent = 'Faça login para acessar o painel administrativo';
+            } else {
+                loginForm.style.display = 'none';
+                registerForm.style.display = 'block';
+                toggleText.innerHTML = 'Já tem conta? <a href="#" id="toggleLink">Fazer login</a>';
+                headerText.textContent = 'Registre seu restaurante no sistema';
+            }
+            
+            // Re-adicionar event listener ao novo link
+            document.getElementById('toggleLink').addEventListener('click', arguments.callee);
+            messageDiv.textContent = '';
+        });
+        
+        // Login
+        loginForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const senha = document.getElementById('senha').value;
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, senha })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    messageDiv.className = 'message success';
+                    messageDiv.textContent = `Bem-vindo, ${data.cliente.nome}! Redirecionando...`;
+                    
+                    // Redirecionar para o painel principal
+                    setTimeout(() => {
+                        window.location.href = '/pedidos.html';
+                    }, 1500);
+                } else {
+                    messageDiv.className = 'message error';
+                    messageDiv.textContent = data.error || 'Erro no login';
+                }
+            } catch (error) {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = 'Erro de conexão. Tente novamente.';
+            }
+        });
+        
+        // Registro
+        registerForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const nome = document.getElementById('nomeRestaurante').value;
+            const email = document.getElementById('emailRegistro').value;
+            const senha = document.getElementById('senhaRegistro').value;
+            
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ nome, email, senha })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    messageDiv.className = 'message success';
+                    messageDiv.textContent = `Restaurante ${data.cliente.nome} registrado com sucesso! Você pode fazer login agora.`;
+                    
+                    // Voltar para o formulário de login
+                    setTimeout(() => {
+                        toggleLink.click();
+                        document.getElementById('email').value = email;
+                    }, 2000);
+                } else {
+                    messageDiv.className = 'message error';
+                    messageDiv.textContent = data.error || 'Erro no registro';
+                }
+            } catch (error) {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = 'Erro de conexão. Tente novamente.';
+            }
+        });
+    </script>
+</body>
+</html>

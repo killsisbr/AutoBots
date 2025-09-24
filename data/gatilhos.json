@@ -1,0 +1,56 @@
+{
+  "1757123073898": {
+    "palavras": [
+      "ddd"
+    ],
+    "mensagem": "ddd",
+    "acao": null,
+    "criadoEm": "2025-09-06T01:44:33.898Z",
+    "usos": 10
+  },
+  "1757126778437": {
+    "palavras": [
+      "qual x da questao"
+    ],
+    "mensagem": "msgEntrega",
+    "acao": "mostrar_cardapio",
+    "criadoEm": "2025-09-06T02:46:18.437Z",
+    "usos": 8
+  },
+  "1757127274276": {
+    "palavras": [
+      "truco"
+    ],
+    "mensagem": "Blefe",
+    "acao": null,
+    "criadoEm": "2025-09-06T02:54:34.276Z",
+    "usos": 1
+  },
+  "1757128271285": {
+    "palavras": [
+      "cc"
+    ],
+    "mensagem": "Cardapio",
+    "acao": "mostrar_cardapio",
+    "criadoEm": "2025-09-06T03:11:11.285Z",
+    "usos": 2
+  },
+  "1757128773005": {
+    "palavras": [
+      "re"
+    ],
+    "mensagem": "",
+    "acao": "resetar_conversa",
+    "criadoEm": "2025-09-06T03:19:33.005Z",
+    "usos": 1
+  },
+  "1757129006324": {
+    "palavras": [
+      "asdad"
+    ],
+    "mensagem": "",
+    "acao": "mostrar_cardapio",
+    "criadoEm": "2025-09-06T03:23:26.324Z",
+    "usos": 0
+  }
+}

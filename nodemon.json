@@ -1,0 +1,39 @@
+{
+  "watch": [
+    "src/",
+    "bot.js",
+    "servidor-gatilhos.js",
+    "package.json"
+  ],
+  "ignore": [
+    "node_modules/",
+    "data/",
+    "backup/",
+    "bin/",
+    "public/",
+    "deploy/",
+    "Pedidos/",
+    "*.sqlite",
+    "*.sqlite-shm",
+    "*.sqlite-wal",
+    "*.log",
+    "*.md",
+    "debug-*.js",
+    "testar-*.js",
+    "teste-*.js",
+    "verificar-*.js",
+    "adicionar-*.js",
+    "corrigir-*.js",
+    "migrar-*.js",
+    "*.jpg",
+    "*.png",
+    "*.gif"
+  ],
+  "ext": "js,json",
+  "delay": 1000,
+  "verbose": true,
+  "restartable": "rs",
+  "env": {
+    "NODE_ENV": "development"
+  }
+}

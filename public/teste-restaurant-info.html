@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Informações do Restaurante</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+            background: #f8f9fa;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        #restaurant-info {
+            margin: 20px 0;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Teste - Informações do Restaurante</h1>
+        
+        <h3>1. Autenticação</h3>
+        <button onclick="fazerLogin()">Login (admin@brutus.com)</button>
+        <button onclick="verificarSessao()">Verificar Sessão</button>
+        <button onclick="logout()">Logout</button>
+        
+        <h3>2. Teste do Endpoint</h3>
+        <button onclick="testarEndpoint()">Testar /api/restaurant/current</button>
+        <button onclick="testarComponente()">Testar Componente</button>
+        
+        <h3>3. Resultado do Componente</h3>
+        <div id="restaurant-info"></div>
+        
+        <h3>4. Logs</h3>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}:</strong> ${message}`;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        async function fazerLogin() {
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        email: 'admin@brutus.com', 
+                        senha: 'admin123' 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    sessionStorage.setItem('clienteId', data.cliente.id);
+                    log('✅ Login realizado com sucesso!', 'success');
+                    log(`Dados: ${JSON.stringify(data)}`, 'info');
+                } else {
+                    log(`❌ Erro no login: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro na requisição de login: ${error.message}`, 'error');
+            }
+        }
+
+        async function verificarSessao() {
+            const clienteId = sessionStorage.getItem('clienteId');
+            if (clienteId) {
+                log(`✅ Sessão ativa para cliente: ${clienteId}`, 'success');
+            } else {
+                log('❌ Nenhuma sessão ativa', 'error');
+            }
+        }
+
+        async function logout() {
+            sessionStorage.removeItem('clienteId');
+            log('✅ Logout realizado', 'success');
+        }
+
+        async function testarEndpoint() {
+            try {
+                const clienteId = sessionStorage.getItem('clienteId');
+                if (!clienteId) {
+                    log('❌ Faça login primeiro', 'error');
+                    return;
+                }
+
+                const response = await fetch('/api/restaurant/current?clienteId=' + encodeURIComponent(clienteId));
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log('✅ Endpoint funcionando!', 'success');
+                    log(`Dados recebidos: ${JSON.stringify(data, null, 2)}`, 'info');
+                } else {
+                    log(`❌ Erro no endpoint: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro na requisição: ${error.message}`, 'error');
+            }
+        }
+
+        async function testarComponente() {
+            try {
+                // Simular o componente
+                const clienteId = sessionStorage.getItem('clienteId');
+                if (!clienteId) {
+                    log('❌ Faça login primeiro', 'error');
+                    return;
+                }
+
+                const response = await fetch('/api/restaurant/current?clienteId=' + encodeURIComponent(clienteId));
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const infoElement = document.getElementById('restaurant-info');
+                    infoElement.innerHTML = `
+                        <strong>🏪 ${data.nome}</strong><br>
+                        <small>ID: ${data.id}</small>
+                    `;
+                    log('✅ Componente renderizado com sucesso!', 'success');
+                } else {
+                    log(`❌ Erro ao carregar dados: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro no componente: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Mensagens</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .message {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .message h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .message .meta {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .message .content {
+            white-space: pre-wrap;
+            background: #fff;
+            padding: 10px;
+            border-radius: 3px;
+            border: 1px solid #eee;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Debug - Mensagens API</h1>
+        <button onclick="testarAPI()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">Testar API</button>
+        
+        <div id="status"></div>
+        <div id="resultado"></div>
+    </div>
+
+    <script>
+        // Sistema Multi-Tenant - Obter clienteId da sessão
+        async function getClienteId() {
+            try {
+                const response = await fetch('/api/auth/me');
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.id;
+                }
+            } catch (error) {
+                console.error('Erro ao obter clienteId:', error);
+            }
+            return null;
+        }
+
+        // Função auxiliar para construir URLs de API com clienteId
+        async function buildApiUrl(endpoint) {
+            const clienteId = await getClienteId();
+            if (!clienteId) {
+                throw new Error('Cliente não autenticado');
+            }
+            const separator = endpoint.includes('?') ? '&' : '?';
+            return `${endpoint}${separator}clienteId=${clienteId}`;
+        }
+
+        async function testarAPI() {
+            const statusDiv = document.getElementById('status');
+            const resultadoDiv = document.getElementById('resultado');
+            
+            statusDiv.innerHTML = '<div class="loading">🔄 Carregando mensagens...</div>';
+            resultadoDiv.innerHTML = '';
+            
+            try {
+                console.log('🚀 Iniciando teste da API...');
+                
+                const apiUrl = await buildApiUrl('/api/mensagens');
+                const response = await fetch(apiUrl);
+                console.log('📡 Resposta recebida:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const mensagens = await response.json();
+                console.log('✅ Mensagens carregadas:', mensagens);
+                
+                statusDiv.innerHTML = `<div class="success">✅ ${mensagens.length} mensagens carregadas com sucesso!</div>`;
+                
+                if (mensagens.length === 0) {
+                    resultadoDiv.innerHTML = '<div class="message"><h3>Nenhuma mensagem encontrada</h3></div>';
+                    return;
+                }
+                
+                resultadoDiv.innerHTML = mensagens.map(msg => `
+                    <div class="message">
+                        <h3>${msg.titulo || 'Sem título'}</h3>
+                        <div class="meta">
+                            <strong>Chave:</strong> ${msg.chave} | 
+                            <strong>Tipo:</strong> ${msg.tipo} | 
+                            <strong>Status:</strong> ${msg.ativo ? 'Ativo' : 'Inativo'} |
+                            <strong>ID:</strong> ${msg.id}
+                        </div>
+                        <div class="content">${msg.conteudo}</div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('❌ Erro:', error);
+                statusDiv.innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
+            }
+        }
+        
+        // Testar automaticamente ao carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Página carregada, testando API...');
+            testarAPI();
+        });
+    </script>
+</body>
+</html>

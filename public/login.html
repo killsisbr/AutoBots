@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema Multi-Tenant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .logo p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #333;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e1e1;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="email"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            text-align: center;
+            display: none;
+        }
+
+        .success-message {
+            background: #efe;
+            color: #363;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            text-align: center;
+            display: none;
+        }
+
+        .demo-credentials {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+
+        .demo-credentials h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .demo-credentials p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .demo-credentials strong {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <h1>🏪 Multi-Tenant</h1>
+            <p>Sistema de Restaurantes</p>
+        </div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="senha">Senha:</label>
+                <input type="password" id="senha" name="senha" required>
+            </div>
+
+            <button type="submit" class="login-btn" id="loginBtn">
+                Entrar no Painel
+            </button>
+
+            <div id="errorMessage" class="error-message"></div>
+            <div id="successMessage" class="success-message"></div>
+        </form>
+
+        <div class="demo-credentials">
+            <h3>📋 Credenciais de Teste:</h3>
+            <p><strong>Brutus Burger:</strong></p>
+            <p>Email: admin@brutus.com</p>
+            <p>Senha: admin123</p>
+            <br>
+            <p><strong>Killsis Pizza:</strong></p>
+            <p>Email: admin@killsis.com</p>
+            <p>Senha: admin123</p>
+        </div>
+    </div>
+
+    <script>
+        const loginForm = document.getElementById('loginForm');
+        const loginBtn = document.getElementById('loginBtn');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(loginForm);
+            const email = formData.get('email');
+            const senha = formData.get('senha');
+
+            // Esconder mensagens anteriores
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+            
+            // Desabilitar botão
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Entrando...';
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, senha })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Mostrar mensagem de sucesso
+                    successMessage.textContent = `Bem-vindo, ${result.cliente.nome}! Redirecionando...`;
+                    successMessage.style.display = 'block';
+                    
+                    console.log('🎯 URL de redirecionamento:', result.redirectUrl);
+                    
+                    // Redirecionar para URL personalizada após 1 segundo
+                    setTimeout(() => {
+                        window.location.href = result.redirectUrl;
+                    }, 1000);
+                } else {
+                    throw new Error(result.error || 'Erro no login');
+                }
+            } catch (error) {
+                console.error('Erro no login:', error);
+                errorMessage.textContent = error.message || 'Erro ao fazer login. Tente novamente.';
+                errorMessage.style.display = 'block';
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Entrar no Painel';
+            }
+        });
+
+        // Auto-completar credenciais de demonstração
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === '1') {
+                document.getElementById('email').value = 'admin@brutus.com';
+                document.getElementById('senha').value = 'admin123';
+                e.preventDefault();
+            }
+            if (e.ctrlKey && e.key === '2') {
+                document.getElementById('email').value = 'admin@killsis.com';
+                document.getElementById('senha').value = 'admin123';
+                e.preventDefault();
+            }
+        });
+
+        console.log('💡 Dicas:');
+        console.log('- Ctrl+1: Auto-completar Brutus Burger');
+        console.log('- Ctrl+2: Auto-completar Killsis Pizza');
+    </script>
+</body>
+</html>
