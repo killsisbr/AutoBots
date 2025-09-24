@@ -132,19 +132,184 @@ const clienteDegust2 = {
 clientesDB.set(clienteDegust2.id, clienteDegust2);
 
 // ===== MAPEAMENTO TELEFONE/RESTAURANTE =====
-// Mapeamento de números de telefone para restaurantes específicos
+// Carrega mapeamento de números de telefone para restaurantes a partir de
+// data/phone-mappings.json para permitir alteração sem editar o código.
 const phoneToRestaurantMap = new Map();
+const phoneMappingsPath = path.join(__dirname, 'data', 'phone-mappings.json');
 
-// Configurar números específicos para cada restaurante
-// Brutus Burger: 554191798537 (número que você mandou mensagem)
-phoneToRestaurantMap.set('554191798537', 'brutus-burger');
+function loadPhoneMappings() {
+  try {
+    if (fs.existsSync(phoneMappingsPath)) {
+      const raw = fs.readFileSync(phoneMappingsPath, 'utf8');
+      const obj = JSON.parse(raw);
+      for (const [phone, rest] of Object.entries(obj)) {
+        phoneToRestaurantMap.set(String(phone), String(rest));
+      }
+      console.log(`📱 [PHONE-MAPPING] Loaded ${phoneToRestaurantMap.size} mappings from data/phone-mappings.json`);
+      // Persist mappings into each restaurant DB (create cliente entries)
+      try {
+        for (const [phone, rest] of Object.entries(obj)) {
+          try {
+            const clienteId = String(rest || 'brutus-burger');
+            const cleanPhone = String(phone).replace(/@c\.us$|@s\.whatsapp\.net$/i, '');
+            const mainDb = multiTenantService.getClientDatabase(clienteId, 'main');
+            // Ensure clientes table exists and insert contact if not present
+            try {
+              const insert = mainDb.prepare('INSERT OR IGNORE INTO clientes (numero, nome) VALUES (?, ?)');
+              insert.run(cleanPhone, `Contato mapeado ${cleanPhone}`);
+            } catch(e) {
+              // Fall back if schema differs
+              try { mainDb.prepare('INSERT OR IGNORE INTO clientes (numero, nome) VALUES (?, ?)').run(cleanPhone, `Contato ${cleanPhone}`); } catch(_e) {}
+            }
+          } catch(e) {
+            console.warn('[PHONE-MAPPING] Falha ao persistir mapping para', phone, e && e.message ? e.message : e);
+          }
+        }
+        console.log('📱 [PHONE-MAPPING] Mapeamentos persistidos nos bancos dos restaurantes (clientes table).');
+      } catch(e) {
+        console.warn('📱 [PHONE-MAPPING] Erro ao persistir mapeamentos nos DBs:', e && e.message ? e.message : e);
+      }
+      return;
+    }
+  } catch (e) {
+    console.error('📱 [PHONE-MAPPING] Erro ao carregar data/phone-mappings.json:', e.message);
+  }
 
-// Killsis Pizza: configurar quando souber o número real
-phoneToRestaurantMap.set('5541999887766', 'killsis-pizza');
+  // Se não houver arquivo, criar mapeamento padrão em memória e persistir para facilitar edição.
+  const defaults = {
+    // Ajuste aqui: se você quer que 554191798537 aponte para killsis-pizza, mantenha como abaixo.
+    "554191798537": "killsis-pizza",
+    // outro exemplo de número do Killsis (se você souber, adicione/atualize)
+    "5541999887766": "killsis-pizza",
+    // Degust exemplos
+    "5541888776655": "degust-175863158714o",
+    "5541777665544": "degust-1758631587140"
+  };
 
-// Degust: configurar quando souber os números reais
-phoneToRestaurantMap.set('5541888776655', 'degust-175863158714o');
-phoneToRestaurantMap.set('5541777665544', 'degust-1758631587140');
+  for (const [phone, rest] of Object.entries(defaults)) {
+    phoneToRestaurantMap.set(String(phone), String(rest));
+  }
+
+  try {
+    const dataDir = path.dirname(phoneMappingsPath);
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(phoneMappingsPath, JSON.stringify(defaults, null, 2), 'utf8');
+    console.log('📱 [PHONE-MAPPING] Arquivo data/phone-mappings.json criado com os defaults (edite para ajustar).');
+      // Persist defaults into the restaurants' DBs (best-effort)
+      try {
+        for (const [phone, rest] of Object.entries(defaults)) {
+          try {
+            const clienteId = String(rest || 'brutus-burger');
+            const cleanPhone = String(phone).replace(/@c\.us$|@s\.whatsapp\.net$/i, '');
+            const mainDb = multiTenantService.getClientDatabase(clienteId, 'main');
+            try {
+              mainDb.prepare('INSERT OR IGNORE INTO clientes (numero, nome) VALUES (?, ?)').run(cleanPhone, `Contato mapeado ${cleanPhone}`);
+            } catch (e) { /* best-effort */ }
+          } catch (e) {
+            console.warn('[PHONE-MAPPING] Falha ao persistir default mapping para', phone, e && e.message ? e.message : e);
+          }
+        }
+        console.log('📱 [PHONE-MAPPING] Defaults persistidos nos bancos dos restaurantes (clientes table).');
+      } catch (e) {
+        console.warn('📱 [PHONE-MAPPING] Erro ao persistir defaults nos DBs:', e && e.message ? e.message : e);
+      }
+  } catch (e) {
+    console.error('📱 [PHONE-MAPPING] Falha ao gravar data/phone-mappings.json:', e.message);
+  }
+}
+
+loadPhoneMappings();
+
+// Watch the phone-mappings file and reload into memory when it changes so updates take effect without restart
+try {
+  if (fs.existsSync(phoneMappingsPath)) {
+    fs.watch(phoneMappingsPath, { persistent: false }, (eventType, filename) => {
+      if (!filename) return;
+      if (eventType === 'change' || eventType === 'rename') {
+        try {
+          const raw = fs.readFileSync(phoneMappingsPath, 'utf8');
+          const obj = JSON.parse(raw || '{}');
+          phoneToRestaurantMap.clear();
+          for (const [phone, rest] of Object.entries(obj)) phoneToRestaurantMap.set(String(phone), String(rest));
+          console.log(`📱 [PHONE-MAPPING] Reloaded ${phoneToRestaurantMap.size} mappings from ${phoneMappingsPath}`);
+          // Persist reloaded mappings into the restaurants' DBs (best-effort)
+          try {
+            for (const [phone, rest] of Object.entries(obj)) {
+              try {
+                const clienteId = String(rest || 'brutus-burger');
+                const cleanPhone = String(phone).replace(/@c\.us$|@s\.whatsapp\.net$/i, '');
+                const mainDb = multiTenantService.getClientDatabase(clienteId, 'main');
+                try {
+                  mainDb.prepare('INSERT OR IGNORE INTO clientes (numero, nome) VALUES (?, ?)').run(cleanPhone, `Contato mapeado ${cleanPhone}`);
+                } catch (e) { /* best-effort */ }
+              } catch (e) {
+                console.warn('[PHONE-MAPPING] Falha ao persistir reloaded mapping para', phone, e && e.message ? e.message : e);
+              }
+            }
+            console.log('📱 [PHONE-MAPPING] Reloaded mappings também persistidos nos DBs dos restaurantes (clientes table).');
+          } catch (e) {
+            console.warn('📱 [PHONE-MAPPING] Erro ao persistir reloaded mappings nos DBs:', e && e.message ? e.message : e);
+          }
+        } catch (e) {
+          console.warn('📱 [PHONE-MAPPING] Failed to reload phone-mappings.json after change:', e && e.message ? e.message : e);
+        }
+      }
+    });
+  }
+} catch (e) {
+  console.warn('📱 [PHONE-MAPPING] fs.watch unavailable or failed:', e && e.message ? e.message : e);
+}
+
+// Carrega arquivos de cardápio JSON presentes em data/cardapios/*.json ou data/cardapio.json
+function loadCardapioFiles() {
+  try {
+    const cardapiosDir = path.join(__dirname, 'data', 'cardapios');
+    // 1) per-client files in data/cardapios/<cliente>.json
+    if (fs.existsSync(cardapiosDir)) {
+      const files = fs.readdirSync(cardapiosDir).filter(f => f.endsWith('.json'));
+      for (const file of files) {
+        try {
+          const full = path.join(cardapiosDir, file);
+          const raw = fs.readFileSync(full, 'utf8');
+          const obj = JSON.parse(raw);
+          const clienteId = path.basename(file, '.json');
+          if (!obj || !obj.items || !Array.isArray(obj.items)) {
+            console.warn(`[CARDAPIO] Arquivo ${file} não contém campo items[]. Pulando.`);
+            continue;
+          }
+          console.log(`[CARDAPIO] Restaurando cardápio de ${file} para cliente ${clienteId}: ${obj.items.length} itens`);
+          // limpar e restaurar
+          try { cardapioService.clearAllItems(clienteId); } catch(e) { console.warn('[CARDAPIO] clearAllItems falhou para', clienteId); }
+          for (const item of obj.items) {
+            try { cardapioService.addItem(clienteId, item); } catch(e) { console.warn('[CARDAPIO] addItem falhou para', clienteId, item && item.nome); }
+          }
+        } catch(e) { console.warn('[CARDAPIO] Erro ao processar arquivo', file, e && e.message ? e.message : e); }
+      }
+    }
+
+    // 2) fallback single file data/cardapio.json -> default to brutus-burger
+    const fallback = path.join(__dirname, 'data', 'cardapio.json');
+    if (fs.existsSync(fallback)) {
+      try {
+        const raw = fs.readFileSync(fallback, 'utf8');
+        const obj = JSON.parse(raw);
+        if (obj && obj.items && Array.isArray(obj.items)) {
+          const clienteId = 'brutus-burger';
+          console.log(`[CARDAPIO] Restaurando cardapio.json para ${clienteId}: ${obj.items.length} itens`);
+          try { cardapioService.clearAllItems(clienteId); } catch(e) { console.warn('[CARDAPIO] clearAllItems falhou para', clienteId); }
+          for (const item of obj.items) {
+            try { cardapioService.addItem(clienteId, item); } catch(e) { console.warn('[CARDAPIO] addItem falhou para', clienteId, item && item.nome); }
+          }
+        }
+      } catch(e) { console.warn('[CARDAPIO] Erro ao ler data/cardapio.json:', e && e.message ? e.message : e); }
+    }
+  } catch (e) {
+    console.error('[CARDAPIO] Erro em loadCardapioFiles:', e && e.message ? e.message : e);
+  }
+}
+
+// Executar carregamento de cardápios no startup
+try { loadCardapioFiles(); } catch(e) { console.warn('[CARDAPIO] loadCardapioFiles error', e && e.message ? e.message : e); }
 
 // Função para determinar qual restaurante baseado no número do cliente
 function getRestaurantByPhoneNumber(phoneNumber) {
@@ -189,7 +354,24 @@ function extractRestaurantFromReferer(referer) {
       console.log(`🔗 [SOCKET] Restaurante extraído do pathname: ${restaurant}`);
       return restaurant;
     }
-    
+
+    // Tentar inferir pelo hostname (ex: killsis.com -> procurar clientId que contenha 'killsis')
+    const hostname = url.hostname.replace(/^www\./i, '').split('.')[0];
+    if (hostname) {
+      // Procurar um cliente cujo id contenha o hostname (case-insensitive)
+      for (const [id] of clientesDB) {
+        if (String(id).toLowerCase().includes(hostname.toLowerCase())) {
+          console.log(`🔗 [SOCKET] Restaurante inferido pelo hostname '${hostname}' -> ${id}`);
+          return id;
+        }
+      }
+      // Caso não encontre, tentar usar o hostname direto se existir como id
+      if (clientesDB.has(hostname)) {
+        console.log(`🔗 [SOCKET] Restaurante igual ao hostname: ${hostname}`);
+        return hostname;
+      }
+    }
+
     console.log(`🔗 [SOCKET] Não foi possível extrair restaurante do referer: ${referer}`);
     return 'brutus-burger';
   } catch (e) {
@@ -209,10 +391,18 @@ function requireAuth(req, res, next) {
     clienteId = req.session.clienteId;
     console.log('[DEBUG] requireAuth - clienteId from session:', clienteId);
   }
-  // Se não houver sessão, tentar obter do query parameter
-  else if (req.query.clienteId) {
-    clienteId = req.query.clienteId;
-    console.log('[DEBUG] requireAuth - clienteId from query:', clienteId);
+  // Se não houver sessão, tentar obter do query parameter (compatibilidade: aceitar clienteId, restaurantId ou restaurant)
+  else {
+    if (req.query.clienteId) {
+      clienteId = req.query.clienteId;
+      console.log('[DEBUG] requireAuth - clienteId from query (clienteId):', clienteId);
+    } else if (req.query.restaurantId) {
+      clienteId = req.query.restaurantId;
+      console.log('[DEBUG] requireAuth - clienteId from query (restaurantId):', clienteId);
+    } else if (req.query.restaurant) {
+      clienteId = req.query.restaurant;
+      console.log('[DEBUG] requireAuth - clienteId from query (restaurant):', clienteId);
+    }
   }
   
   if (clienteId) {
@@ -1243,6 +1433,69 @@ app.get('/api/admin/backup-mapeamentos', async (req, res) => {
   }
 });
 
+// Admin: visualizar mapeamentos de telefone
+app.get('/api/admin/phone-mappings', (req, res) => {
+  try {
+    const out = {};
+    for (const [k, v] of phoneToRestaurantMap) out[k] = v;
+    res.json({ ok: true, mappings: out });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e) }); }
+});
+
+// Admin: atualizar/definir mapeamentos (substitui o objeto inteiro)
+app.post('/api/admin/phone-mappings', (req, res) => {
+  try {
+    const obj = req.body;
+    if (!obj || typeof obj !== 'object') return res.status(400).json({ ok: false, error: 'invalid_payload' });
+    phoneToRestaurantMap.clear();
+    for (const [k, v] of Object.entries(obj)) phoneToRestaurantMap.set(String(k), String(v));
+    // Persistir no arquivo
+    try { fs.writeFileSync(phoneMappingsPath, JSON.stringify(Object.fromEntries(phoneToRestaurantMap), null, 2), 'utf8'); } catch (e) { console.error('📱 [PHONE-MAPPING] erro ao salvar arquivo:', e); }
+
+    // Persistir também nos bancos dos restaurantes (inserir na tabela clientes para referência)
+    try {
+      for (const [phone, rest] of Object.entries(Object.fromEntries(phoneToRestaurantMap))) {
+        try {
+          const clienteId = String(rest || 'brutus-burger');
+          const cleanPhone = String(phone).replace(/@c\.us$|@s\.whatsapp\.net$/i, '');
+          const mainDb = multiTenantService.getClientDatabase(clienteId, 'main');
+          try {
+            mainDb.prepare('INSERT OR IGNORE INTO clientes (numero, nome) VALUES (?, ?)').run(cleanPhone, `Contato mapeado ${cleanPhone}`);
+          } catch (e) { /* best-effort */ }
+        } catch (e) {
+          console.warn('[PHONE-MAPPING] Falha ao persistir mapping via API para', phone, e && e.message ? e.message : e);
+        }
+      }
+      console.log('📱 [PHONE-MAPPING] Mapeamentos persistidos via API nos DBs dos restaurantes');
+    } catch (e) {
+      console.warn('📱 [PHONE-MAPPING] Erro ao persistir mappings via API:', e && e.message ? e.message : e);
+    }
+    res.json({ ok: true, mappings: Object.fromEntries(phoneToRestaurantMap) });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e) }); }
+});
+
+// Admin: definir um único mapeamento (phone -> restaurant)
+app.post('/api/admin/phone-mappings/set', (req, res) => {
+  try {
+    const { phone, restaurantId } = req.body || {};
+    if (!phone || !restaurantId) return res.status(400).json({ ok: false, error: 'missing_phone_or_restaurantId' });
+    const cleanPhone = String(phone).replace(/@c\.us$|@s\.whatsapp\.net$/i, '');
+    phoneToRestaurantMap.set(cleanPhone, String(restaurantId));
+    // Persist to file
+    try { fs.writeFileSync(phoneMappingsPath, JSON.stringify(Object.fromEntries(phoneToRestaurantMap), null, 2), 'utf8'); } catch (e) { console.error('📱 [PHONE-MAPPING] erro ao salvar arquivo:', e); }
+
+    // Persist into restaurant DB if possible
+    try {
+      const mainDb = multiTenantService.getClientDatabase(String(restaurantId), 'main');
+      try { mainDb.prepare('INSERT OR IGNORE INTO clientes (numero, nome) VALUES (?, ?)').run(cleanPhone, `Contato mapeado ${cleanPhone}`); } catch (e) { /* best-effort */ }
+    } catch (e) {
+      console.warn('[PHONE-MAPPING] Falha ao persistir mapping single-set API for', cleanPhone, e && e.message ? e.message : e);
+    }
+
+    res.json({ ok: true, mapping: { [cleanPhone]: String(restaurantId) } });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e) }); }
+});
+
 // Endpoint para restaurar cardápio
 app.post('/api/admin/restore-cardapio', async (req, res) => {
   try {
@@ -2113,7 +2366,9 @@ function createWhatsAppClient(restaurantId) {
       
       clientData.lastActivity = Date.now();
       // Processar mensagem - deixar função determinar restaurante pelo telefone
-      await processMessageForRestaurant(msg);
+      // Importante: passar restaurantId do client para garantir que a mensagem
+      // seja processada no contexto do cliente/conta que a recebeu.
+      await processMessageForRestaurant(msg, restaurantId);
     }
   });
 
@@ -2284,7 +2539,32 @@ app.get('/pedidos', (req, res) => {
 
 // Rota direta para painel de pedidos (quando já tem restaurante selecionado)
 app.get('/pedidos.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'pedidos.html'));
+  try {
+    // Se veio com query restaurant, servir diretamente
+    if (req.query && req.query.restaurant) {
+      return res.sendFile(path.join(__dirname, 'public', 'pedidos.html'));
+    }
+
+    // Tentar inferir pelo hostname (ex: killsis.com -> killsis-pizza)
+    const host = (req.hostname || req.headers.host || '').toString();
+    const hostname = host.replace(/:\d+$/, '').replace(/^www\./i, '').split('.')[0];
+    if (hostname) {
+      for (const [id] of clientesDB) {
+        if (String(id).toLowerCase().includes(hostname.toLowerCase())) {
+          // Redirecionar para a rota personalizada
+          const target = `/pedidos-${id}.html?restaurant=${id}`;
+          console.log(`[ROTA] Host '${host}' mapeado para cliente '${id}', redirecionando para ${target}`);
+          return res.redirect(target);
+        }
+      }
+    }
+
+    // Fallback: apenas servir a página padrão
+    return res.sendFile(path.join(__dirname, 'public', 'pedidos.html'));
+  } catch (e) {
+    console.error('[ROTA] Erro ao servir /pedidos.html:', e);
+    return res.sendFile(path.join(__dirname, 'public', 'pedidos.html'));
+  }
 });
 
 // Rota personalizada para cada cliente: pedidos-(ID).html

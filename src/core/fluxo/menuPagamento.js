@@ -6,16 +6,15 @@ const { obterInformacoesCliente } = require('../../services/clienteService');
 
 function menuPagamento(idAtual, carrinhoAtual, formaDePagamento, msg, client, clienteId = 'brutus-burger') {
     const resp = createClientMensagem(clienteId);
-    switch (formaDePagamento) {
-        case 'Dinheiro':
+    const opt = (String(formaDePagamento || '').trim()).toLowerCase();
+    switch (opt) {
         case 'dinheiro':
-        case '1': //dinheiro //pergutar se precisa de troco
+        case '1': // dinheiro //pergutar se precisa de troco
             msg.reply(resp.msgTroco);
             atualizarEstadoDoCarrinho(idAtual, stats.menuTroco);
             break;
-        case 'pix':
-        case 'Pix':
-        case '2': //pix
+    case 'pix':
+    case '2': // pix
             carrinhoAtual.formaDePagamento = 'PIX';
             carrinhoAtual.formaDePagamentoConfirmada = true;
             msg.reply(`*PEDIDO ANOTADO* ✍🏻\n ${carrinhoAtual.nome}, ${resp.msgPedidoAnotado} \nChave pix: ${resp.msgChavePix}`);
@@ -24,15 +23,12 @@ function menuPagamento(idAtual, carrinhoAtual, formaDePagamento, msg, client, cl
                 salvarPedido(idAtual, carrinhoAtual.endereco, clienteId);
                 try { atualizarEstadoDoCarrinho(idAtual, stats.menuFinalizado); } catch (e) {}
             break;
-        case 'cartão':
-        case 'debito':
-        case 'credito':
-        case 'cartao':
-        case 'Cartão':
-        case 'cartão':
-        case 'Debito':
-        case 'Débito':
-        case '3': //cartao
+    case 'cartão':
+    case 'cartao':
+    case 'debito':
+    case 'débito':
+    case 'credito':
+    case '3': // cartao
             carrinhoAtual.formaDePagamento = 'CARTÃO';
             carrinhoAtual.formaDePagamentoConfirmada = true;
             client.sendMessage(idChatGrupo, `${carrinhoAdm(idAtual)}Pagamento: *CARTÃO*`);
@@ -42,8 +38,8 @@ function menuPagamento(idAtual, carrinhoAtual, formaDePagamento, msg, client, cl
                 try { atualizarEstadoDoCarrinho(idAtual, stats.menuFinalizado); } catch (e) {}
             break;
         case 'voltar':
-        case 'Voltar':
         case 'v':
+        case 'f':
             if (carrinhoAtual.status !== 'finalizado') {
                 if (carrinhoAtual.carrinho.length === 0) {
                     msg.reply("Seu carrinho está vazio. Vamos começar um novo pedido!");
@@ -57,6 +53,12 @@ function menuPagamento(idAtual, carrinhoAtual, formaDePagamento, msg, client, cl
             } else {
                 msg.reply('Você ja finalizou seu pedido, pode pedir novamente: \nDigite *Novo*');
             }
+            break;
+        default:
+            // Quando não reconhece a resposta, orientar o usuário e reapresentar o menu de pagamento
+            msg.reply(`Opção não reconhecida.\n\n${resp.msgMenuPagamento}`);
+            // Mantém o estado em menuPagamento para aguardar nova resposta
+            try { atualizarEstadoDoCarrinho(idAtual, stats.menuPagamento); } catch (e) {}
             break;
     }
 }

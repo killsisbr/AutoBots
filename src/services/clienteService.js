@@ -40,6 +40,27 @@ function getAppDataPath() {
     }
 }
 
+// Helper: ensure columns exist in clientes table for a given clienteId
+function ensureClienteColumns(clienteId, colsDefs = []) {
+    try {
+        const db = getClientDatabase(clienteId);
+        const existing = new Set(db.prepare("PRAGMA table_info('clientes')").all().map(c => c.name));
+        for (const def of colsDefs) {
+            const name = def.split(' ')[0];
+            if (!existing.has(name)) {
+                try {
+                    db.exec(`ALTER TABLE clientes ADD COLUMN ${def}`);
+                    console.log(`[clienteService] Coluna adicionada: ${name} para cliente ${clienteId}`);
+                } catch (e) {
+                    console.warn(`[clienteService] Falha ao adicionar coluna ${name}:`, e && e.message ? e.message : e);
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('[clienteService] Erro ao garantir colunas do cliente:', e && e.message ? e.message : e);
+    }
+}
+
 const pastaDadosApp = getAppDataPath();
 // Cria a pasta de dados do aplicativo se ela não existir
 if (!fs.existsSync(pastaDadosApp)) {
@@ -419,6 +440,8 @@ function atualizarNomeCliente(numero, novoNome, clienteId = 'brutus-burger') {
 // 👉 Adiciona um novo cliente (ou substitui se já existir) com nome, endereço e coordenadas opcionais
 function adicionarCliente(numero, nome, endereco = null, lat = null, lng = null, clienteId = 'brutus-burger') {
     try {
+        // Ensure schema contains latitude/longitude/total_gasto/historico
+        ensureClienteColumns(clienteId, ['latitude REAL', 'longitude REAL', "total_gasto REAL DEFAULT 0", "historico TEXT DEFAULT '[]'"]);
         const db = getClientDatabase(clienteId);
         
         if (!db) {
@@ -438,6 +461,7 @@ function adicionarCliente(numero, nome, endereco = null, lat = null, lng = null,
 // Adiciona um registro ao histórico JSON do cliente (adiciona objeto/linha)
 function adicionarHistorico(numero, entrada, clienteId = 'brutus-burger') {
     try {
+        ensureClienteColumns(clienteId, ['historico TEXT DEFAULT \'[]\'']);
         const clienteDB = multiTenantService.getClientDatabase(clienteId, 'main');
         if (!clienteDB) { console.error(`Banco não inicializado para cliente ${clienteId}`); return; }
         
@@ -465,6 +489,7 @@ function adicionarHistorico(numero, entrada, clienteId = 'brutus-burger') {
 // Adiciona um valor ao total gasto do cliente
 function adicionarGasto(numero, valor, clienteId = 'brutus-burger') {
     try {
+        ensureClienteColumns(clienteId, ['total_gasto REAL DEFAULT 0']);
         const clienteDB = multiTenantService.getClientDatabase(clienteId, 'main');
         if (!clienteDB) { console.error(`Banco não inicializado para cliente ${clienteId}`); return; }
         

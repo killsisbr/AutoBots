@@ -1,0 +1,222 @@
+[
+  {
+    "id": 14,
+    "chave": "msgAvisoEntrega",
+    "titulo": "Aviso de Entrega",
+    "conteudo": "*AVISO IMPORTANTE:*\r\n_Entregas começam apartir das 18:00._\r\n_Mas pode pedir deixar seu pedido encomendado._",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 16,
+    "chave": "msgFormaDePagamento",
+    "titulo": "Forma de Pagamento",
+    "conteudo": "*Forma de pagamento?*\r\n\r\n1 - Dinheiro. \r\n2 - Pix. \r\n3 - Cartão (Crédito/Debito). \r\n\r\n*informe o número da opção desejada.*",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 6,
+    "chave": "msgTroco",
+    "titulo": "Informações de Troco",
+    "conteudo": "💰 *Precisa de troco?*\r\n\r\nSe você vai pagar em *DINHEIRO*, informe o valor para o qual precisa de troco.\r\n\r\n💡 *Exemplo:* Se seu pedido deu R$ 25,00 e você tem uma nota de R$ 50,00, digite: *50*\r\n\r\nSe não precisar de troco, digite: *NÃO*",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 7,
+    "chave": "msgAjuda",
+    "titulo": "Mensagem de Ajuda",
+    "conteudo": "_ENCAMINHANDO_\r\n\r\n_Enquanto esperamos, conte qual sua duvida e como podemos ajudar_\r\n\r\n*Opções do menu:*\r\n*Voltar* - _retornar ao menu *INICIAL*.\r\n*Reiniciar* - _limpa seu carrinho._'",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 4,
+    "chave": "msgPedindoNome",
+    "titulo": "Pedindo Nome",
+    "conteudo": "*SEU NOME?*\r\n\r\n_Para facilitar a identificação_ \r\n\r\nDigite seu *NOME*.",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 15,
+    "chave": "msgApresentacao",
+    "titulo": "msgApresentacao",
+    "conteudo": "🍔 *BEM-VINDO AO BRUTUS BURGER!* 🍔\r\n\r\n👋 Olá! Seja muito bem-vindo(a) ao nosso atendimento automático!\r\n\r\n📱 Aqui você pode fazer seu pedido de forma rápida e prática.\r\n\r\n🕐 *Horário de Funcionamento:*\r\n▪️ Segunda a Domingo: 18:00 às 23:30\r\n\r\n🛵 *Delivery disponível!*\r\n\r\nPara começar, digite *CARDÁPIO* ou clique no botão abaixo! 👇",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 1,
+    "chave": "msgChavePix",
+    "titulo": "msgChavePix",
+    "conteudo": "42998302047 GERIAM DE AZEVEDO",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 2,
+    "chave": "msgEnderecoConfirma",
+    "titulo": "msgEnderecoConfirma",
+    "conteudo": "_*ESTA CERTO O ENDEREÇO ABAIXO?*_\n",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 13,
+    "chave": "msgEntrega",
+    "titulo": "msgEntrega",
+    "conteudo": "*TAXA FIXA*\r\n\r\n*R$7.00* para região urbana.\r\nNosso delivery é rápido. (20-40min)\r\n\r\n📍 Se for interior ou locais afastados, *envie sua localização*.",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 21,
+    "chave": "msgFollowup",
+    "titulo": "msgFollowup",
+    "conteudo": "Olá! Notei que você começou um pedido e não respondeu. Precisa de ajuda para finalizar ou quer continuar pedindo?",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 11,
+    "chave": "msgMenuBebidas",
+    "titulo": "msgMenuBebidas",
+    "conteudo": "*CARDÁPIO DE BEBIDAS:*\n\n*Coca-Cola Lata* - R$ 6.00\n*Coca-Cola Lata Zero* - R$ 6.00\n*Coca-Cola 2L* - R$ 13.00\n*Coca-Cola 2L Zero* - R$ 13.00\n*Guaraná Lata* - R$ 5.00\n*Guaraná 2l* - R$ 13.00\n\n🤖: anotar algo ? ✍🏻",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 17,
+    "chave": "msgMenuEntregaRetirada",
+    "titulo": "msgMenuEntregaRetirada",
+    "conteudo": "*COMO VOCÊ QUER RECEBER SEU PEDIDO?*\r\n\r\n1️⃣ - 🚚 *Entrega* (Taxa de R$ 7,00)\r\n2️⃣ - 🏪 *Retirada no balcão* (Sem taxa)\r\n\r\n*Digite 1 ou 2:*",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 5,
+    "chave": "msgMenuFinal",
+    "titulo": "msgMenuFinal",
+    "conteudo": "Opa, como posso te ajudar?\r\n\r\n*Ajuda* - falar com uma atendente.\r\n*Reiniciar* - Fazer um novo pedido!",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 20,
+    "chave": "msgMenuInicial",
+    "titulo": "msgMenuInicial",
+    "conteudo": "🍔 *BRUTUS BURGER* 🍔\r\n\r\nOlá! Como posso ajudá-lo hoje?\r\n\r\n*CARDÁPIO* - Ver nossos lanches\r\n*BEBIDAS* - Ver bebidas disponíveis\r\n*AJUDA* - Falar com atendente\r\n\r\nDigite uma das opções acima!",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 19,
+    "chave": "msgMenuMarmitas",
+    "titulo": "msgMenuMarmitas",
+    "conteudo": "🍔 *CARDÁPIO BRUTUS BURGER* 🍔\r\n\r\nEscolha seu lanche favorito:\r\n\r\n*1* - Brutus Clássico - R$ 25,00\r\n*2* - Brutus Bacon - R$ 28,00\r\n*3* - Brutus Duplo - R$ 32,00\r\n*4* - Brutus Especial - R$ 35,00\r\n\r\n*Digite o número do lanche desejado*",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 3,
+    "chave": "msgMenuPagamento",
+    "titulo": "msgMenuPagamento",
+    "conteudo": "*Forma de pagamento?*\r\n\r\n1 - Dinheiro. \r\n2 - Pix. \r\n3 - Cartão (Crédito/Debito). \r\n\r\n*informe o número da opção desejada.*",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 9,
+    "chave": "msgObs",
+    "titulo": "msgObs",
+    "conteudo": "*OBSERVAÇÃO FINAL:*\r\n\r\n_Ponto da carne?_\r\n_Horário especefico?_\r\n_Montagem?_\r\n\r\n🤖 Quer anotar alguma observação?",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 8,
+    "chave": "msgPedidoAnotado",
+    "titulo": "msgPedidoAnotado",
+    "conteudo": "_Seu pedido foi recebido pelo restaurante, e esta em preparo.._ \r\n_Caso tenha duvidas, pode digitar as opções a seguir..._ \r\n\r\n*Reiniciar* - Pedir novamente.\r\n*Ajuda* - Falar com um suporte.",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 18,
+    "chave": "msgPedindoEndereco",
+    "titulo": "msgPedindoEndereco",
+    "conteudo": "*ENDEREÇO OU LOCALIZAÇÃO*\r\n\r\n_Em uma frase, digite seu endereço completo ou envie sua localização._\r\n*Exemplo: Rua 1, 123, Bairro Centro*\r\n\r\n📍Se for interior ou locais afastados, *envie sua localização*.",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 22,
+    "chave": "msgPreparo",
+    "titulo": "msgPreparo",
+    "conteudo": "*PONTO DA CARNE:*\r\n\r\n1 - Mal passada\r\n2 - Ao ponto\r\n3 - Bem passada\r\n\r\n*Digite o número da opção desejada.*",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 10,
+    "chave": "msgQuantidade",
+    "titulo": "msgQuantidade",
+    "conteudo": "_Adicionar quantas ao seu pedido_?",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  },
+  {
+    "id": 12,
+    "chave": "msgmenuInicialSub",
+    "titulo": "msgmenuInicialSub",
+    "conteudo": "🤖 Certinho acima? ☝🏻\r\nanotar algo mais? ✍🏻\r\n\r\n*B* - _Abrir lista bebidas_.\r\n*C* - _Cancelar ultimo item do carrinho_.\r\n*F* - _*Finalizar pedido.*_",
+    "categoria": "padrao",
+    "ativo": 1,
+    "data_criacao": "2025-09-24 01:54:16",
+    "data_atualizacao": "2025-09-24 01:54:16"
+  }
+]
