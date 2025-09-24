@@ -2307,11 +2307,14 @@ function createWhatsAppClient(restaurantId) {
       type: 'remote',
       remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
     },
+    // Use a dedicated dataPath per restaurant to guarantee isolation of session files
     authStrategy: new LocalAuth({
       clientId: `bot-${restaurantId}`, // ID único por restaurante
-      dataPath: path.join(path.dirname(clientService.caminhoBanco), 'whatsapp-sessions')
+      dataPath: path.join(path.dirname(clientService.caminhoBanco), 'whatsapp-sessions', String(restaurantId))
     }),
-    takeoverOnConflict: true,
+    // By default avoid automatic takeover when another session connects. Set to true only if you
+    // explicitly want the new login to take control of existing sessions.
+    takeoverOnConflict: false,
     takeoverTimeoutMs: 15000,
     qrMaxRetries: 5
   };
@@ -2341,7 +2344,14 @@ function createWhatsAppClient(restaurantId) {
   });
 
   client.on('authenticated', () => {
-    console.log(`[WhatsApp-${restaurantId}] Autenticado com sucesso`);
+    try {
+      // tentar descobrir o caminho usado pelo LocalAuth (pode não estar exposto, então é best-effort)
+      const authStrategy = client.options && client.options.authStrategy;
+      const sessionPath = authStrategy && authStrategy.dataPath ? authStrategy.dataPath : 'unknown';
+      console.log(`[WhatsApp-${restaurantId}] Autenticado com sucesso (sessionPath=${sessionPath})`);
+    } catch (e) {
+      console.log(`[WhatsApp-${restaurantId}] Autenticado com sucesso`);
+    }
   });
 
   client.on('auth_failure', msg => {
