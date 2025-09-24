@@ -2479,6 +2479,80 @@ app.post('/api/whatsapp/restart', (req, res) => {
   return app._router.handle({ ...req, params: { restaurantId: 'brutus-burger' } }, res);
 });
 
+// API: listar sessões WhatsApp (sessões em disco + estado do cliente em memória)
+app.get('/api/whatsapp/sessions', (req, res) => {
+  try {
+    const baseDir = path.join(path.dirname(clientService.caminhoBanco), 'whatsapp-sessions');
+    const sessions = [];
+
+    let diskEntries = [];
+    try {
+      if (fs.existsSync(baseDir)) {
+        diskEntries = fs.readdirSync(baseDir, { withFileTypes: true })
+          .filter(d => d.isDirectory())
+          .map(d => d.name);
+      }
+    } catch (e) {
+      console.warn('[SESSIONS] Falha ao listar pasta de sessões:', e && e.message ? e.message : e);
+    }
+
+    // Combine on-disk folders and in-memory clients
+    const allIds = new Set([...diskEntries, ...Array.from(whatsappClients.keys())]);
+
+    for (const id of allIds) {
+      const folderPath = path.join(baseDir, String(id));
+      const existsOnDisk = fs.existsSync(folderPath);
+      let stats = null;
+      try { stats = existsOnDisk ? fs.statSync(folderPath) : null; } catch(e) { stats = null; }
+
+      const clientData = whatsappClients.get(id);
+
+      sessions.push({
+        restaurantId: id,
+        sessionPath: folderPath,
+        existsOnDisk: !!existsOnDisk,
+        diskMTime: stats ? stats.mtimeMs : null,
+        isReady: clientData ? !!clientData.isReady : false,
+        hasQR: clientData ? !!clientData.qrCode : false,
+        lastActivity: clientData ? clientData.lastActivity : null
+      });
+    }
+
+    res.json({ ok: true, sessions });
+  } catch (err) {
+    console.error('Erro /api/whatsapp/sessions', err);
+    res.status(500).json({ ok: false, error: String(err) });
+  }
+});
+
+// API: obter info de uma sessão específica
+app.get('/api/whatsapp/sessions/:restaurantId', (req, res) => {
+  try {
+    const restaurantId = req.params.restaurantId || 'brutus-burger';
+    const baseDir = path.join(path.dirname(clientService.caminhoBanco), 'whatsapp-sessions');
+    const folderPath = path.join(baseDir, String(restaurantId));
+    const existsOnDisk = fs.existsSync(folderPath);
+    let stats = null;
+    try { stats = existsOnDisk ? fs.statSync(folderPath) : null; } catch(e) { stats = null; }
+    const clientData = whatsappClients.get(restaurantId);
+
+    const info = {
+      restaurantId,
+      sessionPath: folderPath,
+      existsOnDisk: !!existsOnDisk,
+      diskMTime: stats ? stats.mtimeMs : null,
+      isReady: clientData ? !!clientData.isReady : false,
+      hasQR: clientData ? !!clientData.qrCode : false,
+      lastActivity: clientData ? clientData.lastActivity : null
+    };
+
+    res.json({ ok: true, info });
+  } catch (err) {
+    console.error('Erro /api/whatsapp/sessions/:id', err);
+    res.status(500).json({ ok: false, error: String(err) });
+  }
+});
+
 
 // Rota para servir o PDF/HTML do pedido gerado (visualizar/baixar)
 app.get('/pedidos/:id', (req, res) => {
