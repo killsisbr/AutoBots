@@ -112,6 +112,31 @@ function getMappings(clienteId) {
   }
 }
 
+// Retorna os mapeamentos como um array de objetos no formato { item_id, palavra_chave }
+function getMappingsArray(clienteId) {
+  if (!clienteId) {
+    throw new Error('Cliente ID é obrigatório para obter mapeamentos');
+  }
+
+  try {
+    const db = getClientDatabase(clienteId);
+    // Pegar os mapeamentos no formato original (nome, itemId)
+    const stmt = db.prepare('SELECT nome, itemId FROM mappings');
+    const rows = stmt.all();
+    const out = [];
+    for (const row of rows) {
+      out.push({
+        item_id: Number(row.itemId),
+        palavra_chave: String(row.nome)
+      });
+    }
+    return out;
+  } catch (e) {
+    console.error('[cardapioService] getMappingsArray error', e);
+    return [];
+  }
+}
+
 function addMapping(clienteId, nome, itemId) {
   if (!clienteId) {
     throw new Error('Cliente ID é obrigatório para adicionar mapeamento');
@@ -211,7 +236,7 @@ function clearAllMappings(clienteId) {
   
   try {
     const db = getClientDatabase(clienteId);
-    const stmt = db.prepare('DELETE FROM ai_mappings');
+  const stmt = db.prepare('DELETE FROM mappings');
     const result = stmt.run();
     console.log(`[cardapioService] Removidos ${result.changes} mapeamentos de ${clienteId}`);
     return result.changes;
@@ -234,6 +259,7 @@ module.exports = {
   removeItem,
   updateItem,
   getMappings,
+  getMappingsArray,
   addMapping,
   addMultipleMappings,
   getMappingsByItemId,

@@ -1211,14 +1211,15 @@ app.get('/api/admin/backup-cardapio', async (req, res) => {
   }
 });
 
-// Endpoint para backup dos mapeamentos IA
+// Endpoint para backup dos mapeamentos IA (retorna array de objetos no mesmo padrão de backup do cardápio)
 app.get('/api/admin/backup-mapeamentos', async (req, res) => {
   try {
     const restaurantId = req.query.restaurantId || 'brutus-burger';
     console.log(`[BACKUP] Fazendo backup dos mapeamentos para ${restaurantId}`);
-    
-    const mappings = await cardapioService.getMappings(restaurantId);
-    
+
+    // Usar a nova função que retorna um array de objetos { item_id, palavra_chave }
+    const mappings = await cardapioService.getMappingsArray(restaurantId);
+
     const backupData = {
       restaurantId,
       timestamp: new Date().toISOString(),
@@ -1226,9 +1227,9 @@ app.get('/api/admin/backup-mapeamentos', async (req, res) => {
       type: 'mapeamentos',
       mappings: mappings || []
     };
-    
+
     console.log(`[BACKUP] Backup dos mapeamentos concluído: ${mappings ? mappings.length : 0} mapeamentos`);
-    
+
     res.json({
       ok: true,
       data: backupData
@@ -1332,8 +1333,9 @@ app.post('/api/admin/restore-mapeamentos', async (req, res) => {
           errorCount++;
           continue;
         }
-        
-        await cardapioService.addMapping(restaurantId, mapping.item_id, mapping.palavra_chave);
+
+        // addMapping(clienteId, nome, itemId)
+        await cardapioService.addMapping(restaurantId, mapping.palavra_chave, mapping.item_id);
         addedCount++;
       } catch (error) {
         console.warn(`[RESTORE] Erro ao restaurar mapeamento: ${mapping.palavra_chave} -> ${mapping.item_id}`, error.message);
