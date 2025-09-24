@@ -12,6 +12,60 @@ const crypto = require('crypto');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
+// --- Local wa-version cache server (serves cached HTML versions to avoid remote dependency)
+const waVersionCacheDir = path.join(__dirname, 'data', 'wa-version');
+let waVersionStaticServer = null;
+let waVersionStaticPort = null;
+
+function ensureWaVersionCacheDir() {
+  try {
+    if (!fs.existsSync(waVersionCacheDir)) fs.mkdirSync(waVersionCacheDir, { recursive: true });
+  } catch (e) {
+    console.warn('[WA-VERSION] failed to create cache dir:', e && e.message ? e.message : e);
+  }
+}
+
+function startWaVersionStaticServerIfNeeded() {
+  return new Promise((resolve, reject) => {
+    if (waVersionStaticServer && waVersionStaticPort) return resolve();
+    ensureWaVersionCacheDir();
+    try {
+      const staticServer = http.createServer((req, res) => {
+        try {
+          // Only serve from cache dir
+          const urlPath = decodeURIComponent(req.url.split('?')[0]).replace(/^\//, '');
+          if (!urlPath) return res.statusCode = 404, res.end('Not found');
+          const safePath = path.normalize(path.join(waVersionCacheDir, urlPath));
+          if (!safePath.startsWith(waVersionCacheDir)) return res.statusCode = 403, res.end('Forbidden');
+          if (!fs.existsSync(safePath)) return res.statusCode = 404, res.end('Not found');
+          const data = fs.readFileSync(safePath, 'utf8');
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(data);
+        } catch (e) {
+          res.statusCode = 500;
+          res.end('Error');
+        }
+      });
+
+      staticServer.listen(0, '127.0.0.1', () => {
+        const addr = staticServer.address();
+        waVersionStaticPort = addr && addr.port ? addr.port : null;
+        waVersionStaticServer = staticServer;
+        console.log(`[WA-VERSION] local cache server started at http://127.0.0.1:${waVersionStaticPort}/`);
+        resolve();
+      });
+      staticServer.on('error', (e) => { console.warn('[WA-VERSION] static server error', e && e.message ? e.message : e); resolve(); });
+    } catch (e) {
+      console.warn('[WA-VERSION] failed to start static server', e && e.message ? e.message : e);
+      resolve();
+    }
+  });
+}
+
+function getLocalWaVersionUrl(filename) {
+  if (!waVersionStaticPort) return null;
+  return `http://127.0.0.1:${waVersionStaticPort}/${encodeURIComponent(filename)}`;
+}
 const clientService = require('./src/services/clienteService');
 const mensagensService = require('./src/services/mensagensService');
 const multiTenantService = require('./src/services/multiTenantService');
@@ -1139,18 +1193,30 @@ app.delete('/api/cardapio/:id', restaurantMiddleware.identifyRestaurant(), resta
   try {
     const id = req.params.id;
     if (!id) return res.status(400).json({ ok: false, error: 'missing_id' });
-    
     const clienteId = req.restaurantId || 'brutus-burger';
-    const ok = await cardapioService.removeItem(clienteId, id);
-    
+    console.log(`[DEBUG] DELETE /api/cardapio/:id called - clienteId=${clienteId} id=${id}`);
+
+    let ok = false;
+    try {
+      ok = await cardapioService.removeItem(clienteId, id);
+    } catch (err) {
+      console.error('[ERROR] cardapioService.removeItem threw', err);
+      return res.status(500).json({ ok: false, error: 'remove_exception', detail: String(err) });
+    }
+
+    console.log(`[DEBUG] removeItem result for clienteId=${clienteId} id=${id} => ${ok}`);
+
     if (ok) {
       // broadcast items update
       try { 
         const items = await cardapioService.getItems(clienteId); 
         io.to(req.restaurantId).emit('admin:cardapio', { ok: true, items, clienteId }); 
       } catch(e){}
+      return res.json({ ok: true });
     }
-    res.json({ ok });
+
+    // If removal returned false, return a helpful error
+    return res.status(400).json({ ok: false, error: 'remove_failed', message: 'Item not removed (maybe not found)' });
   } catch (e) { console.error('/api/cardapio DELETE error', e); res.status(500).json({ ok: false, error: String(e) }); }
 });
 
@@ -2282,7 +2348,77 @@ function createWhatsAppClient(restaurantId) {
   
   const chromeExecutablePath = getChromePath();
   
-  const clientConfig = {
+  // Before building client config, ensure remote webVersionCache is reachable; if not, fallback to no remote cache
+  async function ensureWebVersionCache(remotePath) {
+    if (!remotePath) return { type: 'none' };
+    let fetchFn = null;
+    if (typeof fetch === 'function') fetchFn = fetch;
+    else {
+      try { fetchFn = require('node-fetch'); } catch (e) { fetchFn = null; }
+    }
+    if (!fetchFn) {
+      console.warn('[WhatsApp] fetch not available (no node-fetch); skipping remote webVersionCache check');
+      return { type: 'none' };
+    }
+    let attempt = 0;
+    const maxAttempts = 3;
+    while (attempt < maxAttempts) {
+      try {
+        const res = await fetchFn(remotePath, { method: 'GET', timeout: 10000 });
+        if (res.ok) {
+          // Save response body to cache for offline fallback
+          try {
+            const body = await res.text();
+            ensureWaVersionCacheDir();
+            const filename = path.basename(remotePath);
+            const cacheFile = path.join(waVersionCacheDir, filename);
+            try { fs.writeFileSync(cacheFile, body, 'utf8'); } catch (e) { console.warn('[WA-VERSION] failed to write cache file', e && e.message ? e.message : e); }
+            // start local server so cached file can be served via HTTP if needed later
+            await startWaVersionStaticServerIfNeeded();
+            const localUrl = getLocalWaVersionUrl(filename);
+            if (localUrl) return { type: 'remote', remotePath }; // prefer original remotePath when available
+          } catch (e) { console.warn('[WA-VERSION] failed to cache remote content', e && e.message ? e.message : e); }
+          return { type: 'remote', remotePath };
+        }
+        // non-ok response, retry
+      } catch (e) {
+        console.warn('[WhatsApp] webVersionCache fetch attempt failed:', e && e.message ? e.message : e);
+      }
+      attempt++;
+      await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));
+    }
+    // remote failed -> if we have a cached file, serve it through local static server
+    try {
+      ensureWaVersionCacheDir();
+      const filename = path.basename(remotePath);
+      const cacheFile = path.join(waVersionCacheDir, filename);
+      if (fs.existsSync(cacheFile)) {
+        await startWaVersionStaticServerIfNeeded();
+        const localUrl = getLocalWaVersionUrl(filename);
+        if (localUrl) {
+          console.warn('[WhatsApp] using cached wa-version file via local server:', localUrl);
+          return { type: 'remote', remotePath: localUrl };
+        }
+      }
+    } catch (e) { console.warn('[WA-VERSION] cache fallback check failed', e && e.message ? e.message : e); }
+
+    console.warn('[WhatsApp] remote webVersionCache not reachable and no cache found, falling back to no remote cache');
+    return { type: 'none' };
+  }
+
+  // Prepare a placeholder clientData and register it so callers can see status immediately.
+  const clientData = {
+    client: null,
+    qrCode: null,
+    isReady: false,
+    lastActivity: Date.now(),
+    restaurantId: restaurantId
+  };
+
+  whatsappClients.set(restaurantId, clientData);
+
+  // Build client config (webVersionCache will be determined asynchronously)
+  const basePuppeteerConfig = {
     puppeteer: {
       args: [
         '--no-sandbox',
@@ -2302,12 +2438,8 @@ function createWhatsAppClient(restaurantId) {
       executablePath: chromeExecutablePath || undefined,
       timeout: 90000,
       defaultViewport: null
-    },
-    webVersionCache: {
-      type: 'remote',
-      remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
-    },
-    // Use a dedicated dataPath per restaurant to guarantee isolation of session files
+  },
+  // Use a dedicated dataPath per restaurant to guarantee isolation of session files
     authStrategy: new LocalAuth({
       clientId: `bot-${restaurantId}`, // ID único por restaurante
       dataPath: path.join(path.dirname(clientService.caminhoBanco), 'whatsapp-sessions', String(restaurantId))
@@ -2319,72 +2451,81 @@ function createWhatsAppClient(restaurantId) {
     qrMaxRetries: 5
   };
 
-  const client = new Client(clientConfig);
-  
-  const clientData = {
-    client: client,
-    qrCode: null,
-    isReady: false,
-    lastActivity: Date.now(),
-    restaurantId: restaurantId
-  };
-
-  // Eventos do cliente
-  client.on('qr', (qr) => {
-    console.log(`[WhatsApp-${restaurantId}] QR Code gerado`);
-    clientData.qrCode = qr;
-    clientQRCodes.set(restaurantId, qr);
-  });
-
-  client.on('ready', () => {
-    console.log(`[WhatsApp-${restaurantId}] Cliente conectado e pronto!`);
-    clientData.isReady = true;
-    clientData.qrCode = null;
-    clientQRCodes.delete(restaurantId);
-  });
-
-  client.on('authenticated', () => {
+  // Asynchronously finalize client creation so network checks don't block or throw here
+  (async () => {
     try {
-      // tentar descobrir o caminho usado pelo LocalAuth (pode não estar exposto, então é best-effort)
-      const authStrategy = client.options && client.options.authStrategy;
-      const sessionPath = authStrategy && authStrategy.dataPath ? authStrategy.dataPath : 'unknown';
-      console.log(`[WhatsApp-${restaurantId}] Autenticado com sucesso (sessionPath=${sessionPath})`);
+      const remotePath = 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html';
+      const webVersionCacheConfig = await ensureWebVersionCache(remotePath);
+      const clientConfig = Object.assign({}, basePuppeteerConfig, { webVersionCache: webVersionCacheConfig });
+
+      const client = new Client(clientConfig);
+
+      // Attach events to the newly created client
+      client.on('qr', (qr) => {
+        console.log(`[WhatsApp-${restaurantId}] QR Code gerado`);
+        clientData.qrCode = qr;
+        clientQRCodes.set(restaurantId, qr);
+      });
+
+      client.on('authenticated', () => {
+        try {
+          const authStrategy = client.options && client.options.authStrategy;
+          const sessionPath = authStrategy && authStrategy.dataPath ? authStrategy.dataPath : 'unknown';
+          console.log(`[WhatsApp-${restaurantId}] Autenticado com sucesso (sessionPath=${sessionPath})`);
+        } catch (e) {
+          console.log(`[WhatsApp-${restaurantId}] Autenticado com sucesso`);
+        }
+      });
+
+      client.on('ready', async () => {
+        try {
+          const authStrategy = client.options && client.options.authStrategy;
+          const sessionPath = authStrategy && authStrategy.dataPath ? authStrategy.dataPath : 'unknown';
+          console.log(`[WhatsApp-${restaurantId}] Autenticado com sucesso (sessionPath=${sessionPath})`);
+        } catch (e) {
+          console.log(`[WhatsApp-${restaurantId}] Autenticado com sucesso`);
+        }
+        clientData.isReady = true;
+        clientData.lastActivity = Date.now();
+      });
+
+      client.on('auth_failure', msg => {
+        console.error(`[WhatsApp-${restaurantId}] Falha na autenticação:`, msg);
+        clientData.isReady = false;
+      });
+
+      client.on('disconnected', (reason) => {
+        console.log(`[WhatsApp-${restaurantId}] Desconectado:`, reason);
+        clientData.isReady = false;
+        clientData.qrCode = null;
+      });
+
+      // Adicionar eventos de mensagem específicos para este restaurante
+      client.on('message', async (msg) => {
+        if (clientData.isReady && !msg.fromMe) {
+          // Filtrar grupos e broadcasts
+          if (msg.from.includes('@g.us') || msg.from.includes('@broadcast')) {
+            console.log(`🚫 [${restaurantId}] Mensagem ignorada - Grupo/Broadcast: ${msg.from}`);
+            return;
+          }
+          
+          clientData.lastActivity = Date.now();
+          // Processar mensagem - deixar função determinar restaurante pelo telefone
+          // Importante: passar restaurantId do client para garantir que a mensagem
+          // seja processada no contexto do cliente/conta que a recebeu.
+          await processMessageForRestaurant(msg, restaurantId);
+        }
+      });
+
+      // Store client and initialize
+      clientData.client = client;
+      whatsappClients.set(restaurantId, clientData);
+      client.initialize();
     } catch (e) {
-      console.log(`[WhatsApp-${restaurantId}] Autenticado com sucesso`);
+      console.error(`[WhatsApp-${restaurantId}] Erro ao criar cliente WhatsApp:`, e && e.message ? e.message : e);
     }
-  });
+  })();
 
-  client.on('auth_failure', msg => {
-    console.error(`[WhatsApp-${restaurantId}] Falha na autenticação:`, msg);
-    clientData.isReady = false;
-  });
-
-  client.on('disconnected', (reason) => {
-    console.log(`[WhatsApp-${restaurantId}] Desconectado:`, reason);
-    clientData.isReady = false;
-    clientData.qrCode = null;
-  });
-
-  // Adicionar eventos de mensagem específicos para este restaurante
-  client.on('message', async (msg) => {
-    if (clientData.isReady && !msg.fromMe) {
-      // Filtrar grupos e broadcasts
-      if (msg.from.includes('@g.us') || msg.from.includes('@broadcast')) {
-        console.log(`🚫 [${restaurantId}] Mensagem ignorada - Grupo/Broadcast: ${msg.from}`);
-        return;
-      }
-      
-      clientData.lastActivity = Date.now();
-      // Processar mensagem - deixar função determinar restaurante pelo telefone
-      // Importante: passar restaurantId do client para garantir que a mensagem
-      // seja processada no contexto do cliente/conta que a recebeu.
-      await processMessageForRestaurant(msg, restaurantId);
-    }
-  });
-
-  whatsappClients.set(restaurantId, clientData);
-  client.initialize();
-  
   return clientData;
 }
 
@@ -2950,7 +3091,7 @@ io.on('connection', async (socket) => {
       try {
         if (carrinhoService && typeof carrinhoService.salvarPedido === 'function') {
           // salvarPedido will generate the PDF and try to print; pass state so file annotates it
-          const clienteId = 'brutus-burger'; // ID padrão do cliente
+          const clienteId = restaurantId || 'brutus-burger'; // use detected restaurantId
           await carrinhoService.salvarPedido(idNorm, carrinho.estado || finalState, clienteId);
         }
       } catch (err) {

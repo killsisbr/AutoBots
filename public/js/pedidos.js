@@ -15,7 +15,30 @@ function buildApiUrl(endpoint) {
   const restaurantId = getRestaurantId();
   // Sempre incluir o restaurantId na URL para multi-tenant
   const separator = endpoint.includes('?') ? '&' : '?';
-  return `${endpoint}${separator}restaurant=${restaurantId}`;
+  // set both keys for compatibility with different clients
+  return `${endpoint}${separator}restaurant=${encodeURIComponent(restaurantId)}&restaurant_id=${encodeURIComponent(restaurantId)}`;
+}
+
+// Wrapper fetch que mostra mensagens amigáveis e retorna JSON/text
+async function api(path, opts) {
+  try {
+    const res = await fetch(buildApiUrl(path), Object.assign({ headers: {'Content-Type':'application/json'} }, opts||{}));
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch(e) { data = text; }
+    if (!res.ok) {
+      const msg = data && data.error ? data.error : (typeof data === 'string' && data.length ? data : ('HTTP ' + res.status));
+      const err = new Error(msg);
+      err.status = res.status;
+      err.body = data;
+      throw err;
+    }
+    return data;
+  } catch (err) {
+    // log para debug e rethrow
+    console.error('API ERROR', path, err);
+    throw err;
+  }
 }
 
 // Mapa de bebidas para reconhecimento automático (IDs corretos do cardápio)
@@ -260,16 +283,14 @@ const mapaCardapio = {};
 async function loadCardapioAndMappings() {
   try {
     // fetch mappings first (nome -> itemId)
-    const mRes = await fetch(buildApiUrl('/api/cardapio/mappings'));
-    const mJson = await mRes.json();
-    if (mJson && mJson.ok && mJson.mappings) {
-      Object.assign(mapaCardapio, mJson.mappings);
-    }
+    try {
+      const mJson = await api('/api/cardapio/mappings');
+      if (mJson && mJson.mappings) Object.assign(mapaCardapio, mJson.mappings);
+    } catch (e) { console.warn('Não foi possível carregar mappings via API:', e); }
     // optionally fetch items for UI purposes (not strictly needed for mapping)
     try {
-      const itRes = await fetch(buildApiUrl('/api/cardapio'));
-      const itJson = await itRes.json();
-      if (itJson && itJson.ok && Array.isArray(itJson.items)) {
+      const itJson = await api('/api/cardapio');
+      if (itJson && Array.isArray(itJson.items)) {
         // if items exist, ensure any mapping referencing a numeric id that doesn't exist yet
         // is left as-is. We won't auto-create mappings here.
       }
@@ -408,9 +429,8 @@ class CardapioManager {
 
   async loadCardapioData() {
     try {
-      // Carregar dados do servidor (banco SQLite)
-      const response = await fetch(buildApiUrl('/api/cardapio'));
-      const data = await response.json();
+  // Carregar dados do servidor (banco SQLite)
+  const data = await api('/api/cardapio');
       
       if (data && data.ok && Array.isArray(data.items)) {
         this.cardapioData = data.items;
@@ -680,9 +700,8 @@ class CardapioManager {
     // Buscar gatilhos dos mappings do servidor
     let gatilhos = [];
     try {
-      const response = await fetch(buildApiUrl('/api/cardapio/mappings'));
-      const data = await response.json();
-      if (data && data.ok && data.mappings) {
+      const data = await api('/api/cardapio/mappings');
+      if (data && data.mappings) {
         // Criar mapa reverso: encontrar todos os gatilhos que apontam para este item
         gatilhos = Object.entries(data.mappings)
           .filter(([gatilho, mappedItemId]) => mappedItemId == itemId)
@@ -797,17 +816,10 @@ class CardapioManager {
     
     try {
       // Tentar remover do servidor primeiro
-      const response = await fetch(buildApiUrl(`/api/cardapio/${encodeURIComponent(itemId)}`), {
-        method: 'DELETE'
-      });
-      
-      if (response.ok) {
-        showToast('🗑️ Item excluído do servidor', 'success');
-        // Recarregar dados do servidor
-        await this.loadCardapioData();
-      } else {
-        throw new Error('Falha ao excluir do servidor');
-      }
+      const res = await api(`/api/cardapio/${encodeURIComponent(itemId)}`, { method: 'DELETE' });
+      showToast((res && res.ok) ? '🗑️ Item excluído do servidor' : '🗑️ Item excluído', 'success');
+      // Recarregar dados do servidor
+      await this.loadCardapioData();
     } catch (error) {
       console.error('Erro ao excluir item:', error);
       // Fallback: remover apenas localmente
@@ -839,40 +851,30 @@ class CardapioManager {
       if (this.editingItem) {
         // Atualizar item existente via API
         console.log('🔧 DEBUG: Atualizando item existente:', this.editingItem);
-        const response = await fetch(buildApiUrl(`/api/cardapio/${encodeURIComponent(this.editingItem)}`), {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome, descricao, preco, tipo })
-        });
+        const result = await api(`/api/cardapio/${encodeURIComponent(this.editingItem)}`, { method: 'PUT', body: JSON.stringify({ nome, descricao, preco, tipo }) });
         
-        if (response.ok) {
-          const result = await response.json();
+        if (result) {
+          
           console.log('🔧 DEBUG: Item atualizado no servidor:', result);
           
-          // Atualizar mapeamentos se houver gatilhos
-          if (gatilhos.length > 0) {
-            // Primeiro, remover mapeamentos antigos do item
-            try {
-              await fetch(buildApiUrl(`/api/cardapio/mappings/${encodeURIComponent(this.editingItem)}`), {
-                method: 'DELETE'
-              });
-            } catch (e) {
-              console.warn('Erro ao remover mapeamentos antigos:', e);
-            }
-            
-            // Adicionar novos mapeamentos
-            for (const gatilho of gatilhos) {
+            // Atualizar mapeamentos se houver gatilhos
+            if (gatilhos.length > 0) {
+              // Primeiro, remover mapeamentos antigos do item
               try {
-                await fetch(buildApiUrl('/api/cardapio/mappings'), {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ nome: gatilho.toLowerCase(), itemId: this.editingItem })
-                });
+                await api(`/api/cardapio/mappings/${encodeURIComponent(this.editingItem)}`, { method: 'DELETE' });
               } catch (e) {
-                console.error('Erro ao adicionar mapeamento:', e);
+                console.warn('Erro ao remover mapeamentos antigos:', e);
+              }
+            
+              // Adicionar novos mapeamentos
+              for (const gatilho of gatilhos) {
+                try {
+                  await api('/api/cardapio/mappings', { method: 'POST', body: JSON.stringify({ nome: gatilho.toLowerCase(), itemId: this.editingItem }) });
+                } catch (e) {
+                  console.error('Erro ao adicionar mapeamento:', e);
+                }
               }
             }
-          }
           
           showToast('✅ Item atualizado com sucesso', 'success');
           // Recarregar dados do servidor
@@ -883,32 +885,21 @@ class CardapioManager {
       } else {
         // Adicionar novo item via API
         console.log('🔧 DEBUG: Enviando requisição para API');
-        const response = await fetch(buildApiUrl('/api/cardapio'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome, descricao, preco, tipo })
-        });
-        
-        console.log('🔧 DEBUG: Resposta recebida:', response.status);
-        const result = await response.json();
+        const result = await api('/api/cardapio', { method: 'POST', body: JSON.stringify({ nome, descricao, preco, tipo }) });
         console.log('🔧 DEBUG: Resultado da API:', result);
         if (result && result.ok) {
           showToast('✅ Item adicionado ao servidor', 'success');
           
           // Adicionar mapeamentos se houver gatilhos
-          if (gatilhos.length > 0) {
-            for (const gatilho of gatilhos) {
-              try {
-                await fetch(buildApiUrl('/api/cardapio/mappings'), {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ nome: gatilho.toLowerCase(), itemId: result.id })
-                });
-              } catch (e) {
-                console.error('Erro ao adicionar mapeamento:', e);
+            if (gatilhos.length > 0) {
+              for (const gatilho of gatilhos) {
+                try {
+                  await api('/api/cardapio/mappings', { method: 'POST', body: JSON.stringify({ nome: gatilho.toLowerCase(), itemId: result.id }) });
+                } catch (e) {
+                  console.error('Erro ao adicionar mapeamento:', e);
+                }
               }
             }
-          }
           
           // Recarregar dados do servidor
           await this.loadCardapioData();
@@ -945,11 +936,8 @@ class CardapioManager {
     let mapeamentos = {};
     try {
       // Carregar mapeamentos do servidor
-      const response = await fetch(buildApiUrl('/api/cardapio/mappings'));
-      const data = await response.json();
-      if (data && data.ok && data.mappings) {
-        mapeamentos = data.mappings;
-      }
+      const data = await api('/api/cardapio/mappings');
+      if (data && data.mappings) mapeamentos = data.mappings;
     } catch (error) {
       console.error('Erro ao carregar mapeamentos do servidor:', error);
       // Fallback para localStorage
@@ -1015,20 +1003,11 @@ class CardapioManager {
 
     try {
       // Adicionar mapeamento via API
-      const response = await fetch(buildApiUrl('/api/cardapio/mappings'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: gatilho.toLowerCase(), itemId: item.id })
-      });
-      
-      if (response.ok) {
-        showToast('✅ Mapeamento adicionado ao servidor', 'success');
-        // Recarregar mapeamentos
-        await loadCardapioAndMappings();
-        await this.loadMapeamentos();
-      } else {
-        throw new Error('Falha ao adicionar mapeamento');
-      }
+      await api('/api/cardapio/mappings', { method: 'POST', body: JSON.stringify({ nome: gatilho.toLowerCase(), itemId: item.id }) });
+      showToast('✅ Mapeamento adicionado ao servidor', 'success');
+      // Recarregar mapeamentos
+      await loadCardapioAndMappings();
+      await this.loadMapeamentos();
     } catch (error) {
       console.error('Erro ao adicionar mapeamento:', error);
       // Fallback: adicionar apenas localmente
@@ -1070,18 +1049,11 @@ class CardapioManager {
     
     try {
       // Remover mapeamento via API
-      const response = await fetch(`/api/cardapio/mappings/${encodeURIComponent(gatilho)}`, {
-        method: 'DELETE'
-      });
-      
-      if (response.ok) {
-        showToast('🗑️ Mapeamento removido do servidor', 'success');
-        // Recarregar mapeamentos
-        await loadCardapioAndMappings();
-        await this.loadMapeamentos();
-      } else {
-        throw new Error('Falha ao remover mapeamento');
-      }
+      await api(`/api/cardapio/mappings/${encodeURIComponent(gatilho)}`, { method: 'DELETE' });
+      showToast('🗑️ Mapeamento removido do servidor', 'success');
+      // Recarregar mapeamentos
+      await loadCardapioAndMappings();
+      await this.loadMapeamentos();
     } catch (error) {
       console.error('Erro ao remover mapeamento:', error);
       // Fallback: remover apenas localmente
@@ -1393,26 +1365,23 @@ function addMultipleTriggersFromModal() {
   }
   
   // Envia via API REST para melhor controle
-  fetch(buildApiUrl('/api/cardapio/mappings/multiple'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ gatilhos, itemId: id })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (data.ok) {
-      showToast(`${gatilhos.length} gatilhos adicionados com sucesso!`, 'success');
-      gatilhosEl.value = ''; // Limpa o campo
-      // Recarrega os mapeamentos
-      loadCardapioAndMappings().then(() => renderCardapioMappings());
-    } else {
-      showToast('Erro ao adicionar gatilhos: ' + (data.error || 'unknown'), 'error');
+  (async () => {
+    try {
+      const data = await api('/api/cardapio/mappings/multiple', { method: 'POST', body: JSON.stringify({ gatilhos, itemId: id }) });
+      if (data && data.ok) {
+        showToast(`${gatilhos.length} gatilhos adicionados com sucesso!`, 'success');
+        gatilhosEl.value = ''; // Limpa o campo
+        // Recarrega os mapeamentos
+        await loadCardapioAndMappings();
+        renderCardapioMappings();
+      } else {
+        showToast('Erro ao adicionar gatilhos: ' + (data && data.error ? data.error : 'unknown'), 'error');
+      }
+    } catch (err) {
+      console.error('Erro ao adicionar múltiplos gatilhos:', err);
+      showToast('Erro de conexão ao adicionar gatilhos', 'error');
     }
-  })
-  .catch(err => {
-    console.error('Erro ao adicionar múltiplos gatilhos:', err);
-    showToast('Erro de conexão ao adicionar gatilhos', 'error');
-  });
+  })();
 }
 
 // Save local (keeps mapping in the current page). Could be extended to persist via API/socket
@@ -2049,9 +2018,8 @@ function closeConversation() {
 // --- Delivered orders modal logic ---
 async function fetchEntregues() {
   try {
-    const res = await fetch(buildApiUrl('/api/pedidos/entregues'));
-    const j = await res.json();
-    if (!j.ok) return entreguesCache || [];
+    const j = await api('/api/pedidos/entregues');
+    if (!j || !j.ok) return entreguesCache || [];
     // If server returned empty but we have local cache from recent "pedido:salvo" events,
     // prefer the cache to avoid the race where DB GET happens before persistence finished.
     const serverList = j.pedidos || [];
@@ -2081,7 +2049,7 @@ function renderEntreguesList(items) {
     let clienteHTML = '';
     try {
       // Fire-and-forget: fetch info but render placeholders first
-      fetch(`/api/cliente/${encodeURIComponent(clienteNumero)}`).then(res => res.json()).then(json => {
+  fetch(buildApiUrl(`/api/cliente/${encodeURIComponent(clienteNumero)}`)).then(res => res.json()).then(json => {
         try {
           const info = (json && json.cliente) ? json.cliente : null;
           const target = document.getElementById(`cliente-info-${p.id || clienteNumero}`);
@@ -2144,7 +2112,7 @@ function renderEntreguesList(items) {
         render(pedido);
       } else {
         // try fetch
-        fetch(`/api/pedidos/${encodeURIComponent(id)}`).then(r => r.json()).then(j => {
+  fetch(buildApiUrl(`/api/pedidos/${encodeURIComponent(id)}`)).then(r => r.json()).then(j => {
           if (j && j.ok && j.pedido) render(j.pedido);
           else render(pedido); // best-effort
         }).catch(e => { console.error('fetch pedido by id error', e); render(pedido); });
@@ -2186,8 +2154,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function fetchTotaisDoDia() {
   try {
   console.log('fetchTotaisDoDia -> solicitando /api/pedidos/totais-dia');
-  const res = await fetch(buildApiUrl('/api/pedidos/totais-dia'));
-  const j = await res.json();
+  const j = await api('/api/pedidos/totais-dia');
   console.log('fetchTotaisDoDia -> resposta', j);
   if (!j || !j.ok) return;
   try { document.getElementById('header-total-produtos').textContent = Number(j.totalProdutos || 0).toFixed(2); } catch(e){}

@@ -1,6 +1,5 @@
 # === PRODUÇÃO VPS ===
 node_modules/
-.env
 .env.local
 .env.production
 
@@ -10,7 +9,7 @@ node_modules/
 user/
 
 # === BANCO DE DADOS ===
-database/
+data/
 data/*.sqlite-shm
 data/*.sqlite-wal
 

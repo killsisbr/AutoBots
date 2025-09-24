@@ -15,6 +15,7 @@ const menuFormaPagamento = require('./fluxo/menuPagamento').menuPagamento;
 const carrinhoView = carrinhoService.carrinhoView;
 const stats = carrinhoService.stats;
 const esperarResposta = require('../utils/obterResposta').esperarResposta;
+const analisePalavras = require('./analisePalavras');
 
 async function analisePorStatus(carrinhoAtual, msg, idAtual, client, MessageMedia, clienteId = 'brutus-burger') {
     try {
@@ -54,40 +55,44 @@ async function analisePorStatus(carrinhoAtual, msg, idAtual, client, MessageMedi
                 break;
             case stats.menuBebidas: //escolhe qual bebida
                 console.log(`🥤 [analisePorStatus] ➡️ Direcionando para menuBebidas`);
-                let idBebida = msg.body;
+                let idBebida = (msg.body || '').trim();
                 console.log(`🥤 [menuBebidas] Resposta obtida: "${idBebida}"`);
-                switch (idBebida) {
-                    case 'n':
-                    case 'N':
-                    case 'Não':
-                    case 'Nao':
-                    case 'não':
-                    case 'voltar':
-                    case 'v':
-                    case 'volta':
-                    case 'retornar':
-                        console.log(`🔙 [menuBebidas] Voltando para menu inicial`);
-                        atualizarEstadoDoCarrinho(idAtual, stats.menuInicial);
-                        msg.reply(`${carrinhoView(idAtual)}${clientResp.msgmenuInicialSub}`);
-                        break;
-                    default:
-                        if (!isNaN(idBebida) && idBebida !== null) {
-                            console.log(`✅ [menuBebidas] ID bebida válido: ${idBebida}`);
-                            if (carrinhoAtual.alertIdBebida !== true) {
-                                console.log(`📝 [menuBebidas] Solicitando quantidade`);
-                                msg.reply(clientResp.msgQuantidade);
-                                carrinhoAtual.idSelect = parseInt(idBebida);
-                                atualizarEstadoDoCarrinho(idAtual, stats.menuUnidadeBebida);
-                                carrinhoAtual.alertIdBebida = true;
-                            }
-                        } else {
-                            console.log(`❌ [menuBebidas] ID bebida inválido: "${idBebida}"`);
-                            msg.reply('Digite um número referente a bebida!');
+                // Não pedir números para bebida; aceitar nome ou número (compatibilidade)
+                try {
+                    // Primeiro, se for número e corresponder a um item do cardápio, tratar como índice
+                    if (!isNaN(idBebida) && idBebida !== null) {
+                        const cardapioService = require('../services/cardapioService');
+                        await cardapioService.init();
+                        const items = cardapioService.getItems(clienteId) || [];
+                        const bebidasList = items.filter(i => String(i.tipo).toLowerCase() === 'bebida');
+                        const idx = parseInt(idBebida, 10) - 1; // interface mostra 1-based
+                        if (idx >= 0 && idx < bebidasList.length) {
+                            const item = bebidasList[idx];
+                            await adicionarItemAoCarrinho(idAtual, item.id, 1, item.nome, 'Bebida', undefined, clienteId);
+                            atualizarEstadoDoCarrinho(idAtual, stats.menuInicial);
+                            msg.reply(`${carrinhoView(idAtual)}${clientResp.msgmenuInicialSub}`);
+                            break;
                         }
-                        break;
+                        // se número inválido, cai para tentativa por nome
+                    }
+                    // Se não for número (ou número inválido), tentar resolver pelo nome
+                    const nome = String(idBebida || '').trim();
+                    if (nome.length > 0) {
+                        const itemId = await analisePalavras.getItemIdByName(nome, clienteId);
+                        if (itemId) {
+                            await adicionarItemAoCarrinho(idAtual, itemId, 1, nome, 'Bebida', undefined, clienteId);
+                            atualizarEstadoDoCarrinho(idAtual, stats.menuInicial);
+                            msg.reply(`${carrinhoView(idAtual)}${clientResp.msgmenuInicialSub}`);
+                            break;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[menuBebidas] erro ao processar bebida:', e && e.message ? e.message : e);
                 }
+                // Se chegou aqui, não conseguiu resolver
+                console.log(`❌ [menuBebidas] Não foi possível identificar a bebida: "${idBebida}"`);
+                msg.reply('Opção inválida. Digite o nome da bebida desejada.');
                 break;
-            case stats.menuUnidadeBebida: //escolhe quantas dessa bebida
                 let unidadeBebida = await esperarResposta(carrinhoAtual);
                 if (!isNaN(unidadeBebida) && unidadeBebida !== null) {
                     adicionarItemAoCarrinho(idAtual, carrinhoAtual.idSelect, unidadeBebida, "", 'Bebida', undefined, clienteId);

@@ -25,14 +25,51 @@
   function buildApiUrl(endpoint) {
     const restaurantId = getRestaurantId();
     const url = new URL(endpoint, window.location.origin);
+    // set both keys for backward compatibility
     url.searchParams.set('restaurant_id', restaurantId);
+    url.searchParams.set('restaurant', restaurantId);
     return url.toString();
   }
 
+  // Small UX helper: show transient messages (success / error / info)
+  function showMessage(msg, type = 'info') {
+    let elMsg = document.getElementById('api-status-msg');
+    if (!elMsg) {
+      elMsg = document.createElement('div');
+      elMsg.id = 'api-status-msg';
+      elMsg.style.position = 'fixed';
+      elMsg.style.right = '20px';
+      elMsg.style.bottom = '20px';
+      elMsg.style.padding = '10px 14px';
+      elMsg.style.borderRadius = '6px';
+      elMsg.style.zIndex = 9999;
+      elMsg.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+      elMsg.style.fontFamily = 'sans-serif';
+      elMsg.style.fontSize = '13px';
+      document.body.appendChild(elMsg);
+    }
+    elMsg.textContent = msg;
+    elMsg.style.background = type === 'error' ? '#e74c3c' : (type === 'success' ? '#2ecc71' : '#34495e');
+    elMsg.style.color = '#fff';
+    elMsg.style.display = 'block';
+    if (elMsg._hideTimeout) clearTimeout(elMsg._hideTimeout);
+    elMsg._hideTimeout = setTimeout(() => { elMsg.style.display = 'none'; }, 4000);
+  }
+
+  // Wrapper fetch that surfaces server error bodies when possible
   async function api(path, opts) {
     const res = await fetch(buildApiUrl(path), Object.assign({ headers: {'Content-Type':'application/json'} }, opts||{}));
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return res.json();
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
+    if (!res.ok) {
+      const msg = data && data.error ? data.error : (typeof data === 'string' && data.length ? data : ('HTTP ' + res.status));
+      const err = new Error(msg);
+      err.status = res.status;
+      err.body = data;
+      throw err;
+    }
+    return data;
   }
 
   async function loadItems() {
@@ -63,9 +100,11 @@
       try {
         const id = ev.currentTarget.getAttribute('data-id');
         if (!confirm('Remover item ' + id + ' ?')) return;
-        await api('/api/cardapio/' + encodeURIComponent(id), { method: 'DELETE' });
+        const res = await api('/api/cardapio/' + encodeURIComponent(id), { method: 'DELETE' });
+        // show clearer success message
+        showMessage((res && res.ok) ? ('Item ' + id + ' removido com sucesso') : ('Item ' + id + ' removido'), 'success');
         loadItems();
-      } catch (e) { alert('Erro ao remover: ' + e.message); }
+      } catch (e) { console.error(e); showMessage('Falha ao remover: ' + (e.message || e), 'error'); }
     }));
   }
 
@@ -86,9 +125,10 @@
       try {
         const nome = ev.currentTarget.getAttribute('data-nome');
         if (!confirm('Remover mapping ' + nome + ' ?')) return;
-        await api('/api/cardapio/mappings/' + encodeURIComponent(nome), { method: 'DELETE' });
+        const res = await api('/api/cardapio/mappings/' + encodeURIComponent(nome), { method: 'DELETE' });
+        showMessage((res && res.ok) ? ('Mapping "' + nome + '" removido') : ('Mapping "' + nome + '" removido'), 'success');
         loadMappings();
-      } catch (e) { alert('Erro ao remover mapping: ' + e.message); }
+      } catch (e) { console.error(e); showMessage('Falha ao remover mapping: ' + (e.message || e), 'error'); }
     }));
   }
 

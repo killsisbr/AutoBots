@@ -155,6 +155,12 @@ class RestaurantMiddleware {
         if (req.query.restaurant) {
             return req.query.restaurant;
         }
+
+        // compat: some clients send restaurant_id
+        if (req.query.restaurant_id) {
+            console.log('[DEBUG] extractRestaurantId - query restaurant_id found:', req.query.restaurant_id);
+            return req.query.restaurant_id;
+        }
         
         // Verificar subdomain (se aplicável)
         const host = req.get('host');
@@ -250,15 +256,25 @@ class RestaurantMiddleware {
     validateRestaurant() {
         return (req, res, next) => {
             try {
-                // Procurar restaurantId em várias fontes
-                const restaurantId = req.params.id || req.params.restaurantId || req.query.restaurant || req.restaurantId;
-                console.log('[DEBUG] validateRestaurant - restaurantId:', restaurantId);
+                // Procurar restaurantId em várias fontes.
+                // Important: do NOT accidentally use req.params.id (resource id) if a real restaurant id is provided
+                const candidates = [req.params.restaurantId, req.query.restaurant, req.query.restaurant_id, req.restaurantId];
+                // prefer the first candidate that exists in known restaurants
+                let restaurantId = null;
+                for (const c of candidates) {
+                    if (!c) continue;
+                    if (this.restaurantes.has(String(c))) { restaurantId = String(c); break; }
+                }
+                // fallback: if none matched, allow req.params.id as last resort (for routes that embed restaurant in URL)
+                if (!restaurantId && req.params && req.params.id) restaurantId = String(req.params.id);
+
+                console.log('[DEBUG] validateRestaurant - selected restaurantId:', restaurantId);
                 console.log('[DEBUG] validateRestaurant - req.params:', req.params);
                 console.log('[DEBUG] validateRestaurant - req.query.restaurant:', req.query.restaurant);
                 console.log('[DEBUG] validateRestaurant - req.restaurantId:', req.restaurantId);
                 console.log('[DEBUG] validateRestaurant - restaurantes disponíveis:', Array.from(this.restaurantes.keys()));
-                
-                const restaurant = this.restaurantes.get(restaurantId);
+
+                const restaurant = restaurantId ? this.restaurantes.get(restaurantId) : null;
                 console.log('[DEBUG] validateRestaurant - restaurant found:', !!restaurant);
                 
                 if (!restaurant) {

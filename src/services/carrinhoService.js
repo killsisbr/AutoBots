@@ -555,38 +555,32 @@ function atualizarQuantidadeDoItem(idAtual, index, delta, restaurantId) {
  * @param {string} id ID do cliente.
  * @returns {string} String formatada do pedido.
  */
-function imprimirPedido(id) {
-    // Tenta encontrar o carrinho com diferentes variações do ID
-    let carrinho = carrinhos[id];
-    let clienteId = id;
-    
+function imprimirPedido(id, restaurantId = 'brutus-burger') {
+    // Localiza os carrinhos do restaurante e resolve o ID do cliente
+    const carrinhosLocal = getCarrinhos(restaurantId);
+    const resolvedId = resolveCartId(id, restaurantId);
+    let clienteId = resolvedId || id;
+    let carrinho = resolvedId ? carrinhosLocal[resolvedId] : null;
+
+    // Tenta variações caso resolveCartId não tenha encontrado
     if (!carrinho) {
-        // Tenta com @c.us
-        const idWithSuffix = id + '@c.us';
-        if (carrinhos[idWithSuffix]) {
-            carrinho = carrinhos[idWithSuffix];
-            clienteId = idWithSuffix;
-        }
+        const withSuffix = String(id) + '@c.us';
+        if (carrinhosLocal[withSuffix]) { carrinho = carrinhosLocal[withSuffix]; clienteId = withSuffix; }
     }
-    
     if (!carrinho) {
-        // Tenta com ID sanitizado
-        const sanitizedId = sanitizeId(id);
-        if (carrinhos[sanitizedId]) {
-            carrinho = carrinhos[sanitizedId];
-            clienteId = sanitizedId;
-        }
+        const sanitized = sanitizeId(id);
+        if (carrinhosLocal[sanitized]) { carrinho = carrinhosLocal[sanitized]; clienteId = sanitized; }
     }
-    
+
     if (!carrinho) {
         return '*Pedido não encontrado para o ID do cliente.*';
     }
 
     const cliente = carrinho;
-    const carrinhoItens = cliente.carrinho;
+    const carrinhoItens = cliente.carrinho || [];
 
     // Obtém o valor total já calculado pelo valorTotal() do carrinhoService
-    const valorTotalPedido = valorTotal(id);
+    const valorTotalPedido = valorTotal(clienteId, restaurantId);
     const formaDePagamento = cliente.formaDePagamento || 'Não informado';
     const observacao = cliente.observacao || 'Nenhuma';
 
@@ -669,7 +663,7 @@ function imprimirPedido(id) {
         <body>
             <h1>PEDIDO RECEBIDO</h1>
             <p><strong>Cliente:</strong> ${cliente.nome || 'Não informado'}</p>
-            <p><strong>Contato:</strong> ${sanitizeId(id)}</p>
+            <p><strong>Contato:</strong> ${sanitizeId(clienteId)}</p>
             <p><strong>Data/Hora:</strong> ${new Date().toLocaleString('pt-BR')}</p>
             
             <div class="section-title">ITENS DO PEDIDO</div>
@@ -679,9 +673,9 @@ function imprimirPedido(id) {
     if (carrinhoItens.length === 0) {
         htmlContent += `<li>Nenhum item no carrinho.</li>`;
     } else {
-        carrinhoItens.forEach(item => {
+            carrinhoItens.forEach(item => {
             const preparo = item.preparo ? ` (${item.preparo})` : '';
-            htmlContent += `<li>${item.quantidade}x ${item.nome}${preparo} - R$${item.preco.toFixed(2)}</li>`;
+            htmlContent += `<li>${item.quantidade}x ${item.nome}${preparo} - R$${(Number(item.preco)||0).toFixed(2)}</li>`;
         });
     }
 
@@ -702,7 +696,7 @@ function imprimirPedido(id) {
             
             ${observacao !== 'Nenhuma' ? `<div class="section-title">OBSERVAÇÃO</div><p>${observacao}</p>` : ''}
 
-            <p class="total">VALOR TOTAL: R$${valorTotalPedido.toFixed(2)}</p>
+            <p class="total">VALOR TOTAL: R$${(Number(valorTotalPedido)||0).toFixed(2)}</p>
         </body>
         </html>
     `;
@@ -783,7 +777,7 @@ async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger') {
         }
     }
 
-    const htmlContent = imprimirPedido(idAtual) + `<p>${estado}</p>`; // Adiciona o estado ao final do HTML para o PDF
+    const htmlContent = imprimirPedido(idAtual, clienteId) + `<p>${estado}</p>`; // Adiciona o estado ao final do HTML para o PDF
 
     // Tenta localizar um Chrome/Chromium instalado localmente para passar o executablePath
     const chromeCandidates = [
@@ -920,7 +914,9 @@ async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger') {
 
     // Persistir o pedido no banco de dados para histórico e cálculos futuros
     try {
-        const cliente = carrinhos[idAtual] || {};
+        const carrinhosLocal = getCarrinhos(clienteId);
+        const resolvedId = resolveCartId(idAtual, clienteId) || idAtual;
+        const cliente = carrinhosLocal[resolvedId] || {};
         // Sanitize raw object to avoid circular references (timeouts, internals, etc.)
         const rawSanitized = {
             nome: cliente.nome || null,
@@ -932,13 +928,13 @@ async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger') {
             formaDePagamento: cliente.formaDePagamento || null,
             observacao: cliente.observacao || null,
             troco: (typeof cliente.troco !== 'undefined') ? cliente.troco : null,
-            valorTotal: valorTotal(idAtual),
+            valorTotal: valorTotal(resolvedId, clienteId),
             carrinho: Array.isArray(cliente.carrinho) ? cliente.carrinho.map(i => ({ id: i.id, nome: i.nome, quantidade: i.quantidade, preparo: i.preparo, preco: i.preco, tipo: i.tipo })) : []
         };
         const pedidoRecord = {
-            id: idAtual,
+            id: resolvedId,
             ts: Date.now(),
-            total: valorTotal(idAtual),
+            total: valorTotal(resolvedId, clienteId),
             entrega: !!cliente.entrega,
             endereco: cliente.endereco || null,
             estado: estado || null,
@@ -946,7 +942,7 @@ async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger') {
             raw: rawSanitized
         };
         if (typeof adicionarPedido === 'function') {
-            adicionarPedido(idAtual.replace(/[^0-9]/g,''), pedidoRecord);
+            adicionarPedido(String(resolvedId).replace(/[^0-9]/g,''), pedidoRecord);
         }
     } catch (dbErr) {
         console.error('Erro ao persistir pedido no DB:', dbErr && dbErr.message ? dbErr.message : dbErr);
@@ -993,13 +989,14 @@ async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger') {
 
 function carrinhoAdm(id, restaurantId) {
     const carrinhos = getCarrinhos(restaurantId);
-    if (!carrinhos[id]) {
-        return '*Pedido não encontrado para o ID do cliente.*';
-    }
 
-    const marmitas = carrinhos[id].carrinho.filter(item => item.tipo === 'Lanche');
-    const bebidas = carrinhos[id].carrinho.filter(item => item.tipo === 'Bebida');
-    const adicional = carrinhos[id].carrinho.filter(item => item.tipo === 'Adicional');
+    // Usa helper para resolver o ID do carrinho (compatibilidade entre formatos)
+    const resolvedId = resolveCartId(id, restaurantId);
+    if (!resolvedId) return '*Pedido não encontrado para o ID do cliente.*';
+
+    const marmitas = (carrinhos[resolvedId].carrinho || []).filter(item => item.tipo === 'Lanche');
+    const bebidas = (carrinhos[resolvedId].carrinho || []).filter(item => item.tipo === 'Bebida');
+    const adicional = (carrinhos[resolvedId].carrinho || []).filter(item => item.tipo === 'Adicional');
     // A entrega agora é uma flag e um valor separado
     let msgCarrinhoAtual = '*NOVO PEDIDO:*\n';
 
@@ -1020,31 +1017,47 @@ function carrinhoAdm(id, restaurantId) {
         msgCarrinhoAtual += '\n';
     }
 
-    if (carrinhos[id].entrega) {
+    if (carrinhos[resolvedId].entrega) {
         msgCarrinhoAtual += `\n*ENDEREÇO DE ENTREGA:*\n`;
-        msgCarrinhoAtual += `_Endereço: ${carrinhos[id].endereco || 'Não especificado'}_`;
-        if (carrinhos[id].endereco === "LOCALIZAÇÃO" &&carrinhos[id].lat && carrinhos[id].lng) {
-            const linkLocalizacao = `https://www.google.com/maps/search/?api=1&query=${carrinhos[id].lat},${carrinhos[id].lng}`;
+        msgCarrinhoAtual += `_Endereço: ${carrinhos[resolvedId].endereco || 'Não especificado'}_`;
+        if (carrinhos[resolvedId].endereco === "LOCALIZAÇÃO" && carrinhos[resolvedId].lat && carrinhos[resolvedId].lng) {
+            const linkLocalizacao = `https://www.google.com/maps/search/?api=1&query=${carrinhos[resolvedId].lat},${carrinhos[resolvedId].lng}`;
             msgCarrinhoAtual += `\nVer no Mapa: ${linkLocalizacao}\n\n`;
         }
         // 👉 Adiciona o valor da entrega
-        if (typeof carrinhos[id].valorEntrega === 'number' && carrinhos[id].valorEntrega > 0) {
-            msgCarrinhoAtual += `\n_Taxa de Entrega: R$ ${carrinhos[id].valorEntrega.toFixed(2)}_`;
+        if (typeof carrinhos[resolvedId].valorEntrega === 'number' && carrinhos[resolvedId].valorEntrega > 0) {
+            msgCarrinhoAtual += `\n_Taxa de Entrega: R$ ${carrinhos[resolvedId].valorEntrega.toFixed(2)}_`;
         }
         msgCarrinhoAtual += '\n';
-    } else if (carrinhos[id].retirada) {
+    } else if (carrinhos[resolvedId].retirada) {
         msgCarrinhoAtual += `\n*MODO DE ENTREGA: RETIRADA NO LOCAL*\n`;
     }
 
-    if (carrinhos[id].observacao) {
-        msgCarrinhoAtual += `\n*Observação:* _${carrinhos[id].observacao}_`;
+    if (carrinhos[resolvedId].observacao) {
+        msgCarrinhoAtual += `\n*Observação:* _${carrinhos[resolvedId].observacao}_`;
         msgCarrinhoAtual += '\n';
     }
 
-    msgCarrinhoAtual += `\n*Valor Total:* _*R$ ${valorTotal(id).toFixed(2)}*_ 💰\n`;
-    msgCarrinhoAtual += `Nome: ${carrinhos[id].nome || 'Não informado'}\n`;
-    msgCarrinhoAtual += `Contato: wa.me/${sanitizeId(id)}\n`; // Remove @s.whatsapp.net/@broadcast para o link
+    msgCarrinhoAtual += `\n*Valor Total:* _*R$ ${valorTotal(resolvedId).toFixed(2)}*_ 💰\n`;
+    msgCarrinhoAtual += `Nome: ${carrinhos[resolvedId].nome || 'Não informado'}\n`;
+    // Exibir contato usando o número sanitizado do resolvedId
+    const contatoLink = sanitizeId(resolvedId);
+    msgCarrinhoAtual += `Contato: wa.me/${contatoLink}\n`;
     return msgCarrinhoAtual;
+}
+
+// Helper: resolve o ID do carrinho tentando variações comuns (raw, raw+'@c.us', sanitizado)
+function resolveCartId(rawId, restaurantId = 'brutus-burger') {
+    if (!rawId) return null;
+    const carrinhos = getCarrinhos(restaurantId);
+    if (carrinhos[rawId]) return rawId;
+    const withSuffix = rawId + '@c.us';
+    if (carrinhos[withSuffix]) return withSuffix;
+    const s = sanitizeId(rawId);
+    if (carrinhos[s]) return s;
+    // Try also reversed: maybe rawId already contains @c.us and sanitized helps
+    // (sanitizeId already handles removing such suffixes)
+    return null;
 }
 
 
@@ -1073,4 +1086,5 @@ module.exports = {
     getCarrinhos, // Função para obter carrinhos específicos de um restaurante
     getBotStatus, // Função para obter status do bot de um restaurante
     setBotStatus, // Função para definir status do bot de um restaurante
+    resolveCartId,
 };

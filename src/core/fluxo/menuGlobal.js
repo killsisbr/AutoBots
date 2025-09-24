@@ -9,6 +9,7 @@ const { atualizarEstadoDoCarrinho, resetCarrinho, carrinhoView, valorTotal, stat
 const path = require('path'); // Módulo 'path' para lidar com caminhos de arquivo
 const fs = require('fs'); // Módulo 'fs' para verificar a existência de arquivos
 const analisePalavras = require('../analisePalavras'); // Módulo para análise de palavras e reconhecimento de itens
+const cardapioService = require('../../services/cardapioService');
 
 /**
  * Processa as interações do cliente no menu inicial, gerenciando o estado do carrinho
@@ -230,9 +231,30 @@ async function menuInicial(idAtual, carrinhoAtual, msg, client, MessageMedia, cl
         case 'beber':
         case 'bebidas':
         case 'b':
-            console.log('Cliente acessando menu de bebidas:', idAtual);
-            atualizarEstadoDoCarrinho(idAtual, stats.menuBebidas); // Altera o estado do carrinho para bebidas
-            msg.reply(resp.msgMenuBebidas); // Envia a mensagem do menu de bebidas
+            try {
+                console.log('Cliente solicitou lista de bebidas:', idAtual);
+                // Buscar bebidas disponíveis via cardapioService
+                await cardapioService.init();
+                const items = cardapioService.getItems(clienteId) || [];
+                const bebidas = items.filter(i => String(i.tipo).toLowerCase() === 'bebida');
+                if (bebidas.length === 0) {
+                    msg.reply('No momento não temos bebidas cadastradas.');
+                } else {
+                    let texto = `*BEBIDAS DISPONÍVEIS:*`;
+                    bebidas.forEach((b) => {
+                        const preco = (typeof b.preco === 'number') ? b.preco.toFixed(2) : (b.preco || '0.00');
+                        texto += `\n- ${b.nome} - R$ ${preco}`;
+                    });
+                    texto += `\n\nVocê pode pedir digitando apenas o *nome* da bebida (ex: "coca zero").`;
+                    msg.reply(texto);
+                }
+                // Mantém o estado como menuInicial para permitir gatilhos por palavra (nome da bebida)
+                atualizarEstadoDoCarrinho(idAtual, stats.menuInicial);
+            } catch (e) {
+                console.error('[menuInicial] Erro ao listar bebidas:', e && e.message ? e.message : e);
+                msg.reply(resp.msgMenuBebidas);
+                atualizarEstadoDoCarrinho(idAtual, stats.menuBebidas);
+            }
             break;
 
         // --- Saudações e Mensagens de Início ---

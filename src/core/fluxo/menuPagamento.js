@@ -18,6 +18,12 @@ function menuPagamento(idAtual, carrinhoAtual, formaDePagamento, msg, client, cl
             carrinhoAtual.formaDePagamento = 'PIX';
             carrinhoAtual.formaDePagamentoConfirmada = true;
             msg.reply(`*PEDIDO ANOTADO* ✍🏻\n ${carrinhoAtual.nome}, ${resp.msgPedidoAnotado} \nChave pix: ${resp.msgChavePix}`);
+            // DEBUG: log do id recebido e do id resolvido pelo carrinhoService
+            try {
+                const { resolveCartId } = require('../../services/carrinhoService');
+                const resolved = resolveCartId(idAtual);
+                console.log(`[DEBUG][menuPagamento] idAtual=${idAtual} resolvedId=${resolved}`);
+            } catch (e) { console.warn('[DEBUG][menuPagamento] falha ao resolver id do carrinho', e && e.message ? e.message : e); }
             client.sendMessage(idChatGrupo, `${carrinhoAdm(idAtual)}Pagamento: *PIX*`);
                 // Gera o PDF e tenta imprimir, e marca o pedido como finalizado
                 salvarPedido(idAtual, carrinhoAtual.endereco, clienteId);
