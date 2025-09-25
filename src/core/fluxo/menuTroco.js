@@ -10,9 +10,9 @@ function menuTroco(idAtual, carrinhoAtual, troco, msg, client, clienteId = 'brut
         client.sendMessage(idChatGrupo, `${carrinhoAdm(idAtual)} Pagamento: *DINHEIRO - S/Troco*`);
         carrinhoAtual.formaDePagamentoConfirmada = true;
         msg.reply(`*PEDIDO ANOTADO* ✍🏻\n ${carrinhoAtual.nome}, ${resp.msgPedidoAnotado}`);
-        carrinhoAtual.formaDePagamento = 'Tem trocado.';
-        salvarPedido(idAtual, carrinhoAtual.endereco, clienteId);
-        atualizarEstadoDoCarrinho(idAtual, stats.menuFinalizado);
+    carrinhoAtual.formaDePagamento = 'Tem trocado.';
+    // Não gerar/imprimir PDF automaticamente; impressão manual via painel
+    atualizarEstadoDoCarrinho(idAtual, stats.menuFinalizado);
     } else {
         // Verifica se troco é um número válido
         if (isNaN(troco) || troco <= 0) {
@@ -30,7 +30,7 @@ function menuTroco(idAtual, carrinhoAtual, troco, msg, client, clienteId = 'brut
             carrinhoAtual.formaDePagamento = `TROCO p ${troco}`;
             carrinhoAtual.formaDePagamentoConfirmada = true;
             msg.reply(`*PEDIDO ANOTADO* ✍🏻\n ${carrinhoAtual.nome}, ${resp.msgPedidoAnotado}`);
-            salvarPedido(idAtual, carrinhoAtual.endereco, clienteId);
+            // Não gerar/imprimir PDF automaticamente; impressão manual via painel
             atualizarEstadoDoCarrinho(idAtual, stats.menuFinalizado);
         }
     }

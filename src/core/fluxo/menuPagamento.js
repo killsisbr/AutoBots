@@ -25,8 +25,8 @@ function menuPagamento(idAtual, carrinhoAtual, formaDePagamento, msg, client, cl
                 console.log(`[DEBUG][menuPagamento] idAtual=${idAtual} resolvedId=${resolved}`);
             } catch (e) { console.warn('[DEBUG][menuPagamento] falha ao resolver id do carrinho', e && e.message ? e.message : e); }
             client.sendMessage(idChatGrupo, `${carrinhoAdm(idAtual)}Pagamento: *PIX*`);
-                // Gera o PDF e tenta imprimir, e marca o pedido como finalizado
-                salvarPedido(idAtual, carrinhoAtual.endereco, clienteId);
+                // Marca o pedido como finalizado. Geração/impressão de PDF foi
+                // desabilitada no servidor: impressão manual via painel.
                 try { atualizarEstadoDoCarrinho(idAtual, stats.menuFinalizado); } catch (e) {}
             break;
     case 'cartão':
@@ -39,9 +39,9 @@ function menuPagamento(idAtual, carrinhoAtual, formaDePagamento, msg, client, cl
             carrinhoAtual.formaDePagamentoConfirmada = true;
             client.sendMessage(idChatGrupo, `${carrinhoAdm(idAtual)}Pagamento: *CARTÃO*`);
             msg.reply(`*PEDIDO ANOTADO* ✍🏻\n ${carrinhoAtual.nome}, ${resp.msgPedidoAnotado}`);
-                // Gera o PDF e tenta imprimir, e marca o pedido como finalizado
-                salvarPedido(idAtual, carrinhoAtual.endereco, clienteId);
-                try { atualizarEstadoDoCarrinho(idAtual, stats.menuFinalizado); } catch (e) {}
+            // Marca o pedido como finalizado. Geração/impressão de PDF foi
+            // desabilitada no servidor: impressão manual via painel.
+            try { atualizarEstadoDoCarrinho(idAtual, stats.menuFinalizado); } catch (e) {}
             break;
         case 'voltar':
         case 'v':

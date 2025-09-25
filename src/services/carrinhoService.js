@@ -556,152 +556,34 @@ function atualizarQuantidadeDoItem(idAtual, index, delta, restaurantId) {
  * @returns {string} String formatada do pedido.
  */
 function imprimirPedido(id, restaurantId = 'brutus-burger') {
-    // Localiza os carrinhos do restaurante e resolve o ID do cliente
-    const carrinhosLocal = getCarrinhos(restaurantId);
-    const resolvedId = resolveCartId(id, restaurantId);
-    let clienteId = resolvedId || id;
-    let carrinho = resolvedId ? carrinhosLocal[resolvedId] : null;
+    // Build a pedido record from the in-memory cart and delegate to
+    // imprimirPedidoFromRecord so we have a single rendering path.
+    try {
+        const carrinhosLocal = getCarrinhos(restaurantId);
+        const resolvedId = resolveCartId(id, restaurantId) || id;
+        const cliente = carrinhosLocal[resolvedId];
+        if (!cliente) return '*Pedido não encontrado para o ID do cliente.*';
 
-    // Tenta variações caso resolveCartId não tenha encontrado
-    if (!carrinho) {
-        const withSuffix = String(id) + '@c.us';
-        if (carrinhosLocal[withSuffix]) { carrinho = carrinhosLocal[withSuffix]; clienteId = withSuffix; }
+        const pedidoRecord = {
+            id: resolvedId,
+            ts: Date.now(),
+            total: valorTotal(resolvedId, restaurantId),
+            entrega: !!cliente.entrega,
+            endereco: cliente.endereco || null,
+            estado: cliente.estado || null,
+            items: Array.isArray(cliente.carrinho) ? cliente.carrinho : [],
+            raw: {
+                nome: cliente.nome || null,
+                endereco: cliente.endereco || null,
+                valorTotal: valorTotal(resolvedId, restaurantId),
+                carrinho: Array.isArray(cliente.carrinho) ? cliente.carrinho.map(i => ({ id: i.id, nome: i.nome, quantidade: i.quantidade, preparo: i.preparo, preco: i.preco })) : []
+            }
+        };
+        return imprimirPedidoFromRecord(pedidoRecord);
+    } catch (e) {
+        console.error('Erro em imprimirPedido:', e && e.message ? e.message : e);
+        return '*Erro ao renderizar o pedido.*';
     }
-    if (!carrinho) {
-        const sanitized = sanitizeId(id);
-        if (carrinhosLocal[sanitized]) { carrinho = carrinhosLocal[sanitized]; clienteId = sanitized; }
-    }
-
-    if (!carrinho) {
-        return '*Pedido não encontrado para o ID do cliente.*';
-    }
-
-    const cliente = carrinho;
-    const carrinhoItens = cliente.carrinho || [];
-
-    // Obtém o valor total já calculado pelo valorTotal() do carrinhoService
-    const valorTotalPedido = valorTotal(clienteId, restaurantId);
-    const formaDePagamento = cliente.formaDePagamento || 'Não informado';
-    const observacao = cliente.observacao || 'Nenhuma';
-
-    // Lógica para Troco: Só exibe se a forma de pagamento for "Dinheiro" E houver um valor de troco definido e maior que 0
-    let trocoInfoHtml = '';
-    if (formaDePagamento === 'Dinheiro') { // Condicional para forma de pagamento "Dinheiro"
-        if (typeof cliente.troco === 'number' && cliente.troco > 0) {
-            trocoInfoHtml = `<p><strong>Troco para:</strong> R$ ${cliente.troco.toFixed(2)}</p>`;
-        } else if (typeof cliente.troco === 'number' && cliente.troco === 0) { // Valor exato
-            trocoInfoHtml = `<p><strong>Troco para:</strong> Valor exato (R$ 0,00)</p>`;
-        }
-    }
-
-    let tipoEntregaHtml = '';
-    let enderecoInfoHtml = '';
-    let coordenadasMapaHtml = '';
-    let taxaEntregaInfoHtml = '';
-
-    if (cliente.entrega) {
-        enderecoInfoHtml = `<p><strong>Endereço:</strong> ${cliente.endereco || 'Não especificado'}</p>`;
-
-
-        if (typeof cliente.valorEntrega === 'number' && cliente.valorEntrega > 0) {
-            taxaEntregaInfoHtml = `<p><strong>Taxa de Entrega:</strong> R$ ${cliente.valorEntrega.toFixed(2)}</p>`;
-        }
-    }
-    // Se tipoEntregaHtml continuar vazio, a seção não será renderizada por completo
-
-    let htmlContent = `
-        <html>
-        <head>
-            <style>
-                body {
-                    font-size: 12px;
-                    font-family: Arial, sans-serif;
-                    margin: 0;
-                    padding: 0;
-                    width: 80mm; /* Largura típica para impressora térmica */
-                    box-sizing: border-box;
-                }
-                h1 {
-                    font-size: 16px;
-                    text-align: center;
-                    margin-bottom: 10px;
-                    border-bottom: 1px dashed #000;
-                    padding-bottom: 5px;
-                }
-                .section-title {
-                    font-size: 14px;
-                    font-weight: bold;
-                    margin-top: 10px;
-                    margin-bottom: 5px;
-                    border-bottom: 1px solid #eee;
-                }
-                ul {
-                    padding-left: 0;
-                    list-style-type: none;
-                    margin: 0;
-                }
-                li {
-                    font-size: 12px;
-                    text-align: left;
-                    margin-bottom: 3px;
-                    word-wrap: break-word;
-                }
-                p {
-                    font-size: 12px;
-                    text-align: left;
-                    margin: 2px 0;
-                }
-                .total {
-                    font-size: 14px;
-                    font-weight: bold;
-                    margin-top: 10px;
-                    border-top: 1px dashed #000;
-                    padding-top: 5px;
-                }
-            </style>
-        </head>
-        <body>
-            <h1>PEDIDO RECEBIDO</h1>
-            <p><strong>Cliente:</strong> ${cliente.nome || 'Não informado'}</p>
-            <p><strong>Contato:</strong> ${sanitizeId(clienteId)}</p>
-            <p><strong>Data/Hora:</strong> ${new Date().toLocaleString('pt-BR')}</p>
-            
-            <div class="section-title">ITENS DO PEDIDO</div>
-            <ul>
-    `;
-
-    if (carrinhoItens.length === 0) {
-        htmlContent += `<li>Nenhum item no carrinho.</li>`;
-    } else {
-            carrinhoItens.forEach(item => {
-            const preparo = item.preparo ? ` (${item.preparo})` : '';
-            htmlContent += `<li>${item.quantidade}x ${item.nome}${preparo} - R$${(Number(item.preco)||0).toFixed(2)}</li>`;
-        });
-    }
-
-    htmlContent += `
-            </ul>
-            
-            ${(cliente.entrega || cliente.retirada) ? `
-            <div class="section-title">DETALHES DA ENTREGA</div>
-            ${tipoEntregaHtml}
-            ${enderecoInfoHtml}
-            ${coordenadasMapaHtml}
-            ${taxaEntregaInfoHtml}
-            ` : ''}
-
-            <div class="section-title">PAGAMENTO</div>
-            <p><strong>Forma:</strong> ${formaDePagamento}</p>
-            ${trocoInfoHtml}
-            
-            ${observacao !== 'Nenhuma' ? `<div class="section-title">OBSERVAÇÃO</div><p>${observacao}</p>` : ''}
-
-            <p class="total">VALOR TOTAL: R$${(Number(valorTotalPedido)||0).toFixed(2)}</p>
-        </body>
-        </html>
-    `;
-
-    return htmlContent;
 }
 
 // Gera HTML formatado a partir de um registro de pedido (usado quando o PDF foi removido e queremos servir HTML similar)
@@ -877,89 +759,11 @@ async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger') {
         try { if (browser) await browser.close(); } catch (e) {}
     }
 
-    // Define o caminho para o executável do SumatraPDF (configurável via env SUMATRA_PATH)
-    // Baseado na sua estrutura "bin" como convenção, mas aceita override por variável de ambiente
-    const sumatraPdfPathEnv = process.env.SUMATRA_PATH || path.join(process.cwd(), 'bin', 'SumatraPDF-3.4.6-32.exe');
-    const sumatraExists = (process.platform === 'win32') && fs.existsSync(sumatraPdfPathEnv);
-
-    // Imprimir (opcional) - só inclui o sumatraPdfPath para pdf-to-printer se realmente existir
+    // Automatic printing is disabled. We intentionally skip any attempts to
+    // send the PDF to a local printer from the server process. Files are kept
+    // for manual printing from the admin UI (Conversa -> Imprimir).
     let printSuccess = false;
-    try {
-        const printerName = process.env.PRINTER_NAME || 'Microsoft Print to PDF';
-        const printOptions = { printer: printerName };
-        if (sumatraExists) {
-            printOptions.sumatraPdfPath = sumatraPdfPathEnv;
-        }
-        await pdfPrinter.print(filePath, printOptions);
-        console.log('Impressão enviada com sucesso.');
-        printSuccess = true;
-    } catch (printError) {
-        // Log detalhado para ajudar no diagnóstico
-        try { console.error('Erro ao imprimir pedido (pdf-to-printer):', printError); } catch(e) { console.error('Erro ao imprimir pedido (mensagem):', printError && printError.message ? printError.message : printError); }
-        // Tenta fallback: invocar diretamente o Sumatra se estiver disponível (Windows)
-        try {
-            if (sumatraExists) {
-                const { spawn } = require('child_process');
-                const printerName = process.env.PRINTER_NAME || 'Microsoft Print to PDF';
-                console.log('[PRINT-FALLBACK] printerName=', printerName);
-                // list default printers for debugging (best-effort)
-                try {
-                    const { execSync } = require('child_process');
-                    const wmic = execSync('wmic printer get Name,Default /format:csv', { encoding: 'utf8' });
-                    console.log('[PRINT-FALLBACK] Impressoras detectadas (wmic):\n' + wmic);
-                } catch (wmicErr) { console.warn('[PRINT-FALLBACK] não foi possível listar impressoras via wmic:', wmicErr && wmicErr.message ? wmicErr.message : wmicErr); }
-                const args = ['-print-to', printerName, '-silent', filePath];
-                console.log('[PRINT-FALLBACK] executando fallback direto Sumatra:', sumatraPdfPathEnv, args.join(' '));
-                await new Promise((resolve, reject) => {
-                    const p = spawn(sumatraPdfPathEnv, args, { windowsHide: true });
-                    let stderr = '';
-                    let stdout = '';
-                    p.stdout && p.stdout.on('data', d => { stdout += String(d); });
-                    p.stderr && p.stderr.on('data', d => { stderr += String(d); });
-                    p.on('close', async (code) => {
-                        if (code === 0) {
-                            console.log('[PRINT-FALLBACK] Sumatra finalizou com código 0');
-                            printSuccess = true;
-                            return resolve();
-                        }
-                        console.error('[PRINT-FALLBACK] Sumatra finalizou com código', code, 'stderr:', stderr, 'stdout:', stdout);
-                        // Se falhou por não encontrar a impressora, tentar imprimir na impressora padrão
-                        const errText = (stderr + stdout).toLowerCase();
-                        if (errText.includes('não existe') || errText.includes('nao existe') || errText.includes('printer') || code !== 0) {
-                            try {
-                                console.log('[PRINT-FALLBACK] Tentando imprimir na impressora padrão via Sumatra (-print-to-default)');
-                                const argsDefault = ['-print-to-default', filePath];
-                                const p2 = spawn(sumatraPdfPathEnv, argsDefault, { windowsHide: true });
-                                let stderr2 = '';
-                                let stdout2 = '';
-                                p2.stdout && p2.stdout.on('data', d => { stdout2 += String(d); });
-                                p2.stderr && p2.stderr.on('data', d => { stderr2 += String(d); });
-                                p2.on('close', (code2) => {
-                                    if (code2 === 0) {
-                                        console.log('[PRINT-FALLBACK] Sumatra (default) finalizou com código 0');
-                                        printSuccess = true;
-                                        return resolve();
-                                    }
-                                    console.error('[PRINT-FALLBACK] Sumatra (default) finalizou com código', code2, 'stderr:', stderr2, 'stdout:', stdout2);
-                                    return reject(new Error('Sumatra default exited with code ' + code2));
-                                });
-                                p2.on('error', (err2) => { stderr2 += String(err2); reject(err2); });
-                                return;
-                            } catch (e) {
-                                console.error('[PRINT-FALLBACK] Erro ao tentar imprimir na impressora padrão:', e);
-                            }
-                        }
-                        reject(new Error('Sumatra exited with code ' + code));
-                    });
-                    p.on('error', (err) => { stderr += String(err); reject(err); });
-                });
-            } else {
-                console.warn('[PRINT-FALLBACK] Sumatra não disponível ou não é Windows, pulando fallback.');
-            }
-        } catch (fbErr) {
-            console.error('[PRINT-FALLBACK] Erro ao tentar fallback de impressão:', fbErr);
-        }
-    }
+    console.log('[salvarPedido] Impressão automática desabilitada; arquivos mantidos em:', filePath);
 
     // Persistir o pedido no banco de dados para histórico e cálculos futuros
     try {
@@ -991,7 +795,14 @@ async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger') {
             raw: rawSanitized
         };
         if (typeof adicionarPedido === 'function') {
-            adicionarPedido(String(resolvedId).replace(/[^0-9]/g,''), pedidoRecord);
+            // Ensure we pass the clienteId (restaurant identifier) to the DB layer
+            try {
+                const targetClienteId = clienteId || 'brutus-burger';
+                console.log('[salvarPedido] Chamando adicionarPedido com clienteId=', targetClienteId, 'numero=', String(resolvedId).replace(/[^0-9]/g,''));
+                adicionarPedido(String(resolvedId).replace(/[^0-9]/g,''), pedidoRecord, targetClienteId);
+            } catch (e) {
+                console.warn('[salvarPedido] adicionarPedido falhou:', e && e.message ? e.message : e);
+            }
         }
     } catch (dbErr) {
         console.error('Erro ao persistir pedido no DB:', dbErr && dbErr.message ? dbErr.message : dbErr);

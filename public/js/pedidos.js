@@ -86,7 +86,7 @@ function sanitizeId(rawId) {
 
 // Configuration: when true, opening a conversation modal will automatically request
 // printing the order (useful for kitchen stations). Can be toggled as needed.
-const AUTO_PRINT_ON_OPEN = true;
+const AUTO_PRINT_ON_OPEN = false;
 // Prevent double auto-print for the same order during the session
 const autoPrintDone = new Set();
 
@@ -1750,13 +1750,54 @@ socket.on('bot-status-update', (payload) => {
 });
 
 // Funções para abrir/fechar modal de conversa
-function showConversation(id) {
+async function showConversation(id) {
   const modal = document.getElementById('conversation-modal');
   const title = document.getElementById('conv-title');
   const body = document.getElementById('conv-messages');
   const cartEl = document.getElementById('conv-cart');
   const valorEl = document.getElementById('conv-valor');
   const openWa = document.getElementById('conv-open-wa');
+
+  // Try to fetch tenant-scoped carrinhos from the server so the modal shows the
+  // full history for the current restaurant. Merge server messages into the
+  // in-memory carrinhos cache (avoid duplications).
+  try {
+    const server = await api('/api/carrinhos');
+    if (server && server.carrinhos) {
+      const serverCarr = server.carrinhos || {};
+      const serverData = serverCarr[id];
+      if (serverData) {
+        // Ensure local carrinhos entry exists
+        if (!carrinhos[id]) carrinhos[id] = serverData;
+        else {
+          // Merge basic metadata if missing locally
+          carrinhos[id].nome = carrinhos[id].nome || serverData.nome;
+          carrinhos[id].endereco = carrinhos[id].endereco || serverData.endereco;
+          carrinhos[id].estado = carrinhos[id].estado || serverData.estado;
+          carrinhos[id].carrinho = carrinhos[id].carrinho || serverData.carrinho || serverData.itens;
+          carrinhos[id].valorTotal = carrinhos[id].valorTotal || serverData.valorTotal || serverData.total;
+
+          // Merge messages, avoiding duplicates by using a simple key (timestamp+text)
+          try {
+            const localMsgs = Array.isArray(carrinhos[id].messages) ? carrinhos[id].messages : [];
+            const serverMsgs = Array.isArray(serverData.messages) ? serverData.messages : [];
+            const seen = new Set(localMsgs.map(m => `${m.timestamp || ''}::${(m.text||'').slice(0,200)}`));
+            for (const m of serverMsgs) {
+              const key = `${m.timestamp || ''}::${(m.text||'').slice(0,200)}`;
+              if (!seen.has(key)) { localMsgs.push(m); seen.add(key); }
+            }
+            // keep newest last and truncate to 200
+            localMsgs.sort((a,b) => (Number(a.timestamp||0) - Number(b.timestamp||0)));
+            if (localMsgs.length > 200) localMsgs.splice(0, localMsgs.length - 200);
+            carrinhos[id].messages = localMsgs;
+          } catch(e) { /* non-fatal */ }
+        }
+      }
+    }
+  } catch (e) {
+    // non-fatal: if fetch fails, we'll render using local in-memory data
+    console.warn('Não foi possível carregar histórico de carrinhos do servidor:', e);
+  }
 
   const data = carrinhos[id] || {};
   title.textContent = `${data.nome || 'Cliente'} — ${sanitizeId(id)}`;
@@ -1949,28 +1990,96 @@ function showConversation(id) {
       actionsInFlight.delete('imprimir');
       setButtonLoading('conv-print', false);
       if (r && r.ok && r.url) {
-          // Try to print silently by loading the PDF in a hidden iframe and calling print()
+          // Show the PDF inside an in-page modal (iframe) so we don't open a new tab.
           try {
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = r.url;
-            document.body.appendChild(iframe);
-            // When iframe loads, try to trigger print
-            iframe.onload = () => {
+            const pdfOverlay = document.createElement('div');
+            pdfOverlay.style.position = 'fixed';
+            pdfOverlay.style.inset = '0';
+            pdfOverlay.style.background = 'rgba(0,0,0,0.85)';
+            pdfOverlay.style.display = 'flex';
+            pdfOverlay.style.alignItems = 'center';
+            pdfOverlay.style.justifyContent = 'center';
+            pdfOverlay.style.zIndex = 99999;
+
+            const pdfContainer = document.createElement('div');
+            pdfContainer.style.width = '90%';
+            pdfContainer.style.height = '90%';
+            pdfContainer.style.background = '#fff';
+            pdfContainer.style.borderRadius = '8px';
+            pdfContainer.style.overflow = 'hidden';
+            pdfContainer.style.position = 'relative';
+
+            // Header bar so controls don't overlap the PDF viewer
+            const header = document.createElement('div');
+            header.style.height = '44px';
+            header.style.display = 'flex';
+            header.style.alignItems = 'center';
+            header.style.justifyContent = 'space-between';
+            header.style.padding = '6px 12px';
+            header.style.background = '#2c2c2c';
+            header.style.color = '#fff';
+            header.style.boxSizing = 'border-box';
+
+            const leftActions = document.createElement('div');
+            leftActions.style.display = 'flex';
+            leftActions.style.gap = '8px';
+
+            const downloadLink = document.createElement('a');
+            downloadLink.href = r.url;
+            downloadLink.textContent = 'Download';
+            downloadLink.style.color = '#fff';
+            downloadLink.style.textDecoration = 'none';
+            downloadLink.style.padding = '6px 10px';
+            downloadLink.style.borderRadius = '4px';
+            downloadLink.style.background = 'transparent';
+            downloadLink.setAttribute('download', '');
+
+            const printBtn = document.createElement('button');
+            printBtn.textContent = 'Imprimir';
+            printBtn.style.padding = '6px 10px';
+            printBtn.style.borderRadius = '4px';
+            printBtn.style.border = 'none';
+            printBtn.style.cursor = 'pointer';
+            printBtn.onclick = () => {
               try {
-                // Some browsers allow iframe.contentWindow.print() when same origin
+                // Try to print the iframe contents
                 iframe.contentWindow.focus();
                 iframe.contentWindow.print();
-                setTimeout(() => { try { document.body.removeChild(iframe); } catch(e){} }, 3000);
               } catch (e) {
-                // Fallback: open in new tab
-                window.open(r.url, '_blank');
+                showToast('Não foi possível iniciar impressão automática. Use Download ou o menu do navegador.', 'error');
               }
             };
-            showToast('PDF gerado. Impressão solicitada.', 'success');
+
+            leftActions.appendChild(downloadLink);
+            leftActions.appendChild(printBtn);
+
+            const rightActions = document.createElement('div');
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = 'Fechar';
+            closeBtn.style.padding = '6px 10px';
+            closeBtn.style.borderRadius = '4px';
+            closeBtn.style.border = 'none';
+            closeBtn.style.cursor = 'pointer';
+            closeBtn.onclick = () => { try { document.body.removeChild(pdfOverlay); } catch(e){} };
+            rightActions.appendChild(closeBtn);
+
+            header.appendChild(leftActions);
+            header.appendChild(rightActions);
+
+            const iframe = document.createElement('iframe');
+            iframe.src = r.url;
+            iframe.style.width = '100%';
+            iframe.style.height = 'calc(100% - 44px)';
+            iframe.style.border = '0';
+
+            pdfContainer.appendChild(header);
+            pdfContainer.appendChild(iframe);
+            pdfOverlay.appendChild(pdfContainer);
+            document.body.appendChild(pdfOverlay);
+
+            showToast('PDF gerado. Visualize no modal e use o botão de Download/Imprimir do navegador.', 'success');
           } catch (e) {
-            window.open(r.url, '_blank');
-            showToast('PDF gerado e aberto.', 'success');
+            showToast('PDF gerado, mas não foi possível abrir a visualização. URL: ' + r.url, 'error');
           }
       } else {
         showToast('Não foi possível imprimir: ' + (r && r.error ? r.error : 'Pedido não finalizado'), 'error');
@@ -1979,33 +2088,14 @@ function showConversation(id) {
   };
 
   modal.style.display = 'flex';
-  // Auto-print on open (if enabled) — only once per session per order
+  // Auto-print on open is intentionally disabled. Keep this block as a safe no-op
+  // so that automatic printing cannot trigger even if the flag is toggled.
   try {
     if (AUTO_PRINT_ON_OPEN && data && data.estado && String(data.estado) === 'finalizado') {
       if (!autoPrintDone.has(id)) {
         autoPrintDone.add(id);
-        // Emit imprimirPedido with forcePrint so server will invoke the printer even if PDF exists
-        socket.emit('admin:imprimirPedido', { id, forcePrint: true });
-        socket.once('admin:ack', (r) => {
-          if (r && r.ok && r.url) {
-            try {
-              const iframe = document.createElement('iframe');
-              iframe.style.display = 'none';
-              iframe.src = r.url;
-              document.body.appendChild(iframe);
-              iframe.onload = () => {
-                try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch (e) { window.open(r.url, '_blank'); }
-                setTimeout(() => { try { document.body.removeChild(iframe); } catch(e){} }, 3000);
-              };
-              showToast('Impressão automática solicitada.', 'success');
-            } catch (e) {
-              window.open(r.url, '_blank');
-              showToast('Impressão automática: arquivo aberto.', 'success');
-            }
-          } else {
-            showToast('Impressão automática falhou: ' + (r && r.error ? r.error : 'unknown'), 'error');
-          }
-        });
+        // Automatic printing is disabled — require admin to click the Imprimir button.
+        showToast('Impressão automática está desabilitada. Use o botão Imprimir no popup.', 'info');
       }
     }
   } catch (e) { console.error('auto-print error', e); }
