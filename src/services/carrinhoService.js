@@ -603,19 +603,24 @@ function imprimirPedidoFromRecord(pedidoRecord) {
         const observacao = (pedidoRecord.raw && pedidoRecord.raw.observacao) || '';
 
         let html = `<!doctype html><html><head><meta charset="utf-8"><title>Pedido ${id}</title><style>
-            body{font-family:Arial,Helvetica,sans-serif;font-size:12px;margin:0;padding:12px}
-            h1{font-size:18px;text-align:center;margin:6px 0;padding-bottom:6px}
-            .section-title{font-weight:700;margin-top:8px;border-bottom:1px solid #ddd;padding-bottom:6px}
-            ul{list-style:none;padding-left:0;margin:6px 0}
-            li{margin-bottom:6px}
-            .total{font-weight:700;margin-top:10px}
-            .sep{border-top:1px dashed #000;margin:10px 0}
+            /* Thermal receipt optimized for 80mm printers (Epson TM-T20) */
+            @page{size:80mm auto;margin:3mm}
+            body{font-family:Arial,Helvetica,sans-serif;font-size:18px;margin:0;padding:4px;color:#000;line-height:1.15}
+            .receipt{width:74mm;margin:0 auto}
+            h1{font-size:22px;text-align:center;margin:4px 0 6px;padding-bottom:4px}
+            .section-title{font-weight:700;margin-top:6px;border-bottom:1px dashed #000;padding-bottom:4px;font-size:16px}
+            ul{list-style:none;padding-left:0;margin:6px 0;font-size:16px}
+            li{margin-bottom:4px}
+            .total{font-weight:900;margin-top:8px;font-size:20px}
+            .sep{border-top:1px dashed #000;margin:8px 0}
+            .muted{color:#444;font-size:13px}
         </style></head><body>`;
-        html += `<div style="text-align:right;font-size:11px;color:#666">${new Date(Number(ts)).toLocaleString()}</div>`;
-        html += `<h1>PEDIDO RECEBIDO</h1><div class="sep"></div>`;
-        html += `<p><strong>Cliente:</strong> ${clienteNome}</p>`;
-        html += `<p><strong>Contato:</strong> ${String(pedidoRecord.numero||id)}</p>`;
-        html += `<p><strong>Data/Hora:</strong> ${new Date(Number(ts)).toLocaleString('pt-BR')}</p>`;
+    html += `<div class="receipt">`;
+    html += `<div style="text-align:right;font-size:12px;color:#666">${new Date(Number(ts)).toLocaleString()}</div>`;
+    html += `<h1>PEDIDO RECEBIDO</h1><div class="sep"></div>`;
+    html += `<p><strong>Cliente:</strong> ${clienteNome}</p>`;
+    html += `<p><strong>Contato:</strong> ${String(pedidoRecord.numero||id)}</p>`;
+    html += `<p><strong>Data/Hora:</strong> ${new Date(Number(ts)).toLocaleString('pt-BR')}</p>`;
         html += `<div class="section-title">ITENS DO PEDIDO</div><ul>`;
         if (!items || items.length === 0) html += `<li>Nenhum item no carrinho.</li>`;
         else items.forEach(it => {
@@ -634,9 +639,10 @@ function imprimirPedidoFromRecord(pedidoRecord) {
         if (observacao && String(observacao).trim().length > 0) {
             html += `<div class="section-title">OBSERVAÇÃO</div><p>${observacao}</p>`;
         }
-        html += `<div class="sep"></div><p class="total">VALOR TOTAL: R$${total.toFixed(2)}</p>`;
-        if (endereco) html += `<div style="margin-top:6px;color:#666">${endereco}</div>`;
-        html += `</body></html>`;
+    html += `<div class="sep"></div><p class="total">VALOR TOTAL: R$${total.toFixed(2)}</p>`;
+    if (endereco) html += `<div style="margin-top:6px;color:#666">${endereco}</div>`;
+    html += `</div>`; // .receipt
+    html += `</body></html>`;
         return html;
     } catch (e) { console.error('Erro em imprimirPedidoFromRecord:', e); return '<html><body>Erro ao renderizar pedido</body></html>'; }
 }
@@ -731,16 +737,18 @@ async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger') {
 
         try {
             await page.pdf({
-                path: filePath,
-                format: 'A4',
-                printBackground: true,
-                margin: {
-                    top: '10mm',
-                    right: '10mm',
-                    bottom: '10mm',
-                    left: '10mm',
-                }
-            });
+                    path: filePath,
+                    // Use a narrow width suitable for thermal receipt printers (80mm)
+                    width: '80mm',
+                    printBackground: true,
+                    preferCSSPageSize: true,
+                    margin: {
+                        top: '3mm',
+                        right: '3mm',
+                        bottom: '3mm',
+                        left: '3mm'
+                    }
+                });
             console.log('PDF gerado com Puppeteer:', filePath);
         } catch (pdfError) {
             console.error(`Erro ao gerar PDF para ${idAtual}: ${pdfError.message}`);
