@@ -3657,7 +3657,7 @@ async function processMessageForRestaurant(msg, restaurantId = null) {
     console.log(`⏰ [${restaurantId}] Timestamp: ${new Date().toISOString()}`);
     
     // Verificar gatilhos personalizados primeiro
-    console.log(`🔍 [${restaurantId}] Verificando gatilhos personalizados...`);
+    console.log(`🔍 [🔍] [📋] [${restaurantId}] Verificando gatilhos personalizados...`);
     const gatilhoExecutado = await verificarGatilhosPersonalizados(mensagem, msg, idAtual);
     if (gatilhoExecutado) {
       console.log(`🎯 [${restaurantId}] ✅ Gatilho personalizado executado para ${idAtual}`);
@@ -3665,6 +3665,13 @@ async function processMessageForRestaurant(msg, restaurantId = null) {
       return;
     }
     console.log(`🔍 [${restaurantId}] ❌ Nenhum gatilho personalizado encontrado`);
+    
+    // Verificar se é apenas mídia sem texto - se for, não processar
+    if (!mensagem || mensagem.trim() === '' || msg.hasMedia) {
+      console.log(`📷 [${restaurantId}] Mensagem de mídia detectada sem texto - não processando`);
+      console.log(`🏁 ===== FIM DO FLUXO (MÍDIA) =====\n`);
+      return;
+    }
     
     console.log(`📋 [${restaurantId}] Prosseguindo para processamento normal...`);
 

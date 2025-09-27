@@ -310,6 +310,54 @@ async function menuInicial(idAtual, carrinhoAtual, msg, client, MessageMedia, cl
                     }
                 } else {
                     console.log(`🔍 [DEBUG] Item NÃO reconhecido: "${lastMsgLower}"`);
+                    
+                    // Se a mensagem é apenas mídia (foto, audio, etc.) sem texto, não responder
+                    if (!msg.body || msg.body.trim() === '' || msg.hasMedia) {
+                        console.log(`📷 [menuInicial] Mensagem de mídia detectada sem texto - não respondendo`);
+                        return;
+                    }
+                    
+                    // SISTEMA ANTI-SPAM: Controle de cooldown para evitar respostas repetitivas
+                    const now = Date.now();
+                    const COOLDOWN_TIME = 5000; // 5 segundos entre respostas
+                    const lastResponse = carrinhoAtual.lastDefaultResponse || 0;
+                    
+                    if (now - lastResponse < COOLDOWN_TIME) {
+                        console.log(`⏰ [menuInicial] COOLDOWN ATIVO: Ignorando resposta (última: ${new Date(lastResponse).toLocaleTimeString()})`);
+                        return;
+                    }
+                    
+                    // Detectar tentativas de conversa comum (não relacionada ao cardápio)
+                    const conversaComum = [
+                        'opa', 'eai', 'iae', 'como vai', 'tudo bem', 'beleza', 'fala', 'salve',
+                        'tchau', 'ate', 'ate logo', 'obrigado', 'valeu', 'ok', 'blz', 
+                        'legal', 'massa', 'show', 'bacana', 'perfeito', 'certo',
+                        'nao entendi', 'não entendi', 'que', 'como assim', 'huh', 'eh',
+                        'rs', 'rsrs', 'kk', 'kkk', 'haha', 'rsrsrs'
+                    ];
+                    
+                    const isConversa = conversaComum.some(palavra => 
+                        lastMsgLower.includes(palavra) || lastMsgLower === palavra
+                    );
+                    
+                    if (isConversa) {
+                        console.log(`💬 [menuInicial] CONVERSA DETECTADA: "${lastMsgLower}" - aplicando cooldown mais longo`);
+                        
+                        // Para conversas, cooldown mais longo e resposta mais simples
+                        const CONVERSA_COOLDOWN = 15000; // 15 segundos para conversas
+                        const lastConversaResponse = carrinhoAtual.lastConversaResponse || 0;
+                        
+                        if (now - lastConversaResponse < CONVERSA_COOLDOWN) {
+                            console.log(`🚫 [menuInicial] CONVERSA COOLDOWN ATIVO: Ignorando (última: ${new Date(lastConversaResponse).toLocaleTimeString()})`);
+                            return;
+                        }
+                        
+                        carrinhoAtual.lastConversaResponse = now;
+                        await msg.reply('Olá! Posso te ajudar com algum pedido? 😊');
+                        return;
+                    }
+                    
+                    carrinhoAtual.lastDefaultResponse = now;
                 }
             } catch (error) {
                 console.log(`🔍 [DEBUG] Erro ao tentar reconhecer item: ${error.message}`);
@@ -350,9 +398,13 @@ async function menuInicial(idAtual, carrinhoAtual, msg, client, MessageMedia, cl
                     await msg.reply(`${resp.msgApresentacao}\n\n[As imagens do cardápio não puderam ser enviadas. Por favor, verifique se os arquivos estão na pasta correta.]`);
                 }
             } else {
-                // Se já foi apresentado, envia apenas a mensagem inicial
+                // Se já foi apresentado, verificar se há texto na mensagem antes de responder
+                if (!msg.body || msg.body.trim() === '' || msg.hasMedia) {
+                    console.log(`📷 [menuInicial] Mensagem de mídia detectada (já apresentado) - não respondendo`);
+                    return;
+                }
+                
                 console.log('📱 [menuInicial] Enviando apenas mensagem inicial (já apresentado)');
-                await msg.reply(resp.msgmenuInicialSub || 'Olá! Como posso ajudá-lo?');
             }
             break;
     }
