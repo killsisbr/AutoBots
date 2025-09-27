@@ -605,15 +605,17 @@ function imprimirPedidoFromRecord(pedidoRecord) {
         let html = `<!doctype html><html><head><meta charset="utf-8"><title>Pedido ${id}</title><style>
             /* Thermal receipt optimized for 80mm printers (Epson TM-T20) */
             @page{size:80mm auto;margin:3mm}
-            body{font-family:Arial,Helvetica,sans-serif;font-size:18px;margin:0;padding:4px;color:#000;line-height:1.15}
+            body{font-family:Arial,Helvetica,sans-serif;font-size:22px;margin:0;padding:4px;color:#000;line-height:1.3}
             .receipt{width:74mm;margin:0 auto}
-            h1{font-size:22px;text-align:center;margin:4px 0 6px;padding-bottom:4px}
-            .section-title{font-weight:700;margin-top:6px;border-bottom:1px dashed #000;padding-bottom:4px;font-size:16px}
-            ul{list-style:none;padding-left:0;margin:6px 0;font-size:16px}
-            li{margin-bottom:4px}
-            .total{font-weight:900;margin-top:8px;font-size:20px}
+            h1{font-size:26px;text-align:center;margin:4px 0 6px;padding-bottom:4px;font-weight:bold}
+            .section-title{font-weight:700;margin-top:6px;border-bottom:1px dashed #000;padding-bottom:4px;font-size:20px}
+            ul{list-style:none;padding-left:0;margin:6px 0;font-size:20px}
+            li{margin-bottom:4px;line-height:1.4}
+            .total{font-weight:900;margin-top:8px;font-size:24px}
             .sep{border-top:1px dashed #000;margin:8px 0}
-            .muted{color:#444;font-size:13px}
+            .muted{color:#444;font-size:16px}
+            p{font-size:20px;line-height:1.3;margin:4px 0}
+            strong{font-weight:bold}
         </style></head><body>`;
     html += `<div class="receipt">`;
     html += `<div style="text-align:right;font-size:12px;color:#666">${new Date(Number(ts)).toLocaleString()}</div>`;

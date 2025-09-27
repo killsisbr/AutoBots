@@ -405,6 +405,7 @@ async function menuInicial(idAtual, carrinhoAtual, msg, client, MessageMedia, cl
                 }
                 
                 console.log('📱 [menuInicial] Enviando apenas mensagem inicial (já apresentado)');
+                
             }
             break;
     }

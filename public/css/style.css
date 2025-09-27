@@ -468,15 +468,37 @@ label {
   body {
     background: white;
     color: black;
+    font-size: 22px; /* Aumentar fonte para impressão */
+    line-height: 1.4;
   }
   
   .card {
     background: white;
     border: 1px solid #ccc;
     box-shadow: none;
+    font-size: 20px; /* Fonte maior para cards impressos */
+  }
+  
+  h1, h2, h3 {
+    font-size: 26px; /* Títulos maiores */
+    font-weight: bold;
+  }
+  
+  p, li, span, div {
+    font-size: 20px; /* Texto geral maior */
+  }
+  
+  .total, .section-title {
+    font-size: 24px; /* Seções importantes ainda maiores */
+    font-weight: bold;
   }
   
   button {
     display: none;
+  }
+  
+  /* Espaçamento melhorado para impressão */
+  * {
+    line-height: 1.5;
   }
 }
