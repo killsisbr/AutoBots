@@ -649,7 +649,7 @@ function imprimirPedidoFromRecord(pedidoRecord) {
     } catch (e) { console.error('Erro em imprimirPedidoFromRecord:', e); return '<html><body>Erro ao renderizar pedido</body></html>'; }
 }
 
-async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger') {
+async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger', forcePrint = false) {
     // MODIFICADO: Altera o caminho para ser relativo ao diretório de trabalho atual (writable)
     const ordersDir = path.join(process.cwd(), 'Pedidos');
     const filePath = path.join(ordersDir, `${idAtual}.pdf`);
@@ -678,11 +678,16 @@ async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger') {
     } catch (e) { /* ignore */ }
     try { resolvedId = resolveCartId(String(idAtual)) || resolvedId; } catch(e){}
 
-    // Gera conteúdo HTML do pedido. Se imprimirPedido não encontrar o pedido
-    // (retornando a mensagem de 'Pedido não encontrado'), tenta construir o
-    // HTML a partir do carrinho em memória usando imprimirPedidoFromRecord.
-    let htmlContent = imprimirPedido(resolvedId, clienteId) || '';
-    if (!htmlContent || String(htmlContent).toLowerCase().includes('pedido não encontrado')) {
+        // Gera conteúdo HTML do pedido. Se imprimirPedido não encontrar o pedido
+        // (retornando a mensagem de 'Pedido não encontrado'), tenta construir o
+        // HTML a partir do carrinho em memória usando imprimirPedidoFromRecord.
+        // Quando forcePrint === true, forçamos a geração a partir do carrinho em memória
+        // para garantir que o PDF represente o pedido atual, não um arquivo antigo.
+        let htmlContent = '';
+        if (!forcePrint) {
+            try { htmlContent = imprimirPedido(resolvedId, clienteId) || ''; } catch(e) { htmlContent = ''; }
+        }
+        if (!htmlContent || String(htmlContent).toLowerCase().includes('pedido não encontrado')) {
         try {
             const carrinhosLocal = getCarrinhos(clienteId);
             const carrinho = carrinhosLocal[resolvedId] || carrinhosLocal[String(idAtual)] || carrinhosLocal[String(idAtual) + '@c.us'] || null;

@@ -1985,7 +1985,8 @@ async function showConversation(id) {
     // O servidor responderá via 'admin:ack' com { ok:true, url: '/pedidos/<id>.pdf' }
     actionsInFlight.add('imprimir');
     setButtonLoading('conv-print', true);
-    socket.emit('admin:imprimirPedido', { id });
+  // Request server to force-regenerate the PDF to avoid returning an older cached file
+  socket.emit('admin:imprimirPedido', { id, forcePrint: true });
     socket.once('admin:ack', (r) => {
       actionsInFlight.delete('imprimir');
       setButtonLoading('conv-print', false);

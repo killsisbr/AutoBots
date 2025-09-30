@@ -3092,7 +3092,8 @@ io.on('connection', async (socket) => {
         if (carrinhoService && typeof carrinhoService.salvarPedido === 'function') {
           // salvarPedido will generate the PDF and try to print; pass state so file annotates it
           const clienteId = restaurantId || 'brutus-burger'; // use detected restaurantId
-          await carrinhoService.salvarPedido(idNorm, carrinho.estado || finalState, clienteId);
+          // Pass forcePrint flag so backend can regenerate from in-memory cart when requested
+          await carrinhoService.salvarPedido(idNorm, carrinho.estado || finalState, clienteId, Boolean(data && data.forcePrint));
         }
       } catch (err) {
         console.error('[ADMIN] Erro ao gerar o PDF:', err);
@@ -3339,7 +3340,7 @@ io.on('connection', async (socket) => {
       } catch (e) { console.error('[ADMIN] Erro ao persistir pedido como saiu_para_entrega:', e); }
       // send message to client via WhatsApp client
       try {
-        const texto = message || 'Seu pedido saiu para entrega! Em breve chegará.';
+  const texto = message || 'Seu pedido saiu para entrega, muito obrigado e bom apetite..';
         
         // Determinar qual cliente usar (padrão: brutus-burger)
         const targetRestaurant = 'brutus-burger'; // ou extrair do contexto se necessário

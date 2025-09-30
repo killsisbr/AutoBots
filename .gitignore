@@ -49,3 +49,5 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+data/usuarios/brutus-burger/main.sqlite-wal
+data/usuarios/brutus-burger/main.sqlite-shm
