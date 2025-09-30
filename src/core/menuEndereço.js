@@ -5,6 +5,24 @@ const { normalizarTexto, limparDescricao } = require('../utils/normalizarTexto')
 
 const axios = require('axios');
 
+// Haversine formula fallback to compute approximate great-circle distance in km
+function haversineKm(lat1, lon1, lat2, lon2) {
+    try {
+        const toRad = (v) => (v * Math.PI) / 180;
+        const R = 6371; // Earth's radius in km
+        const dLat = toRad(lat2 - lat1);
+        const dLon = toRad(lon2 - lon1);
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                  Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    } catch (e) {
+        console.error('Haversine calculation failed:', e && e.message ? e.message : e);
+        return 0;
+    }
+}
+
 // Coordenadas do restaurante (EXEMPLO)
 const RESTAURANTE_COORDENADAS = {
     lat: -25.236655,
@@ -48,22 +66,38 @@ async function calcularDistanciaKm(destinoLat, destinoLng) {
         // Verifica se a resposta tem dados de rota válidos
         if (res.data && res.data.routes && res.data.routes[0] && res.data.routes[0].summary) {
             const metros = res.data.routes[0].summary.distance;
-            return metros / 1000; // Converte metros para km
+            const km = metros / 1000;
+            console.log(`[DISTANCIA] ORS returned distance: ${metros} meters -> ${km.toFixed(3)} km`);
+            // Also compute straight-line haversine for comparison
+            try {
+                const hav = haversineKm(RESTAURANTE_COORDENADAS.lat, RESTAURANTE_COORDENADAS.lng, destinoLat, destinoLng);
+                if (hav > 0) {
+                    const ratio = km / hav;
+                    if (ratio < 0.5 || ratio > 3) {
+                        console.warn(`[DISTANCIA] ORS km (${km.toFixed(2)}) differs from haversine km (${hav.toFixed(2)}) by ratio ${ratio.toFixed(2)}. Using ORS but check if this is expected.`);
+                    }
+                }
+            } catch (e) { /* ignore haversine comparison errors */ }
+            return km; // Converte metros para km
         } else {
-            console.error('Erro: Resposta inesperada da API OpenRouteService - sem dados de rota.');
-            return 0; // Retorna 0 se não houver dados de rota válidos
+            console.error('Erro: Resposta inesperada da API OpenRouteService - sem dados de rota. Falling back to haversine.');
+            // fallback: compute straight-line distance
+            const havFallback = haversineKm(RESTAURANTE_COORDENADAS.lat, RESTAURANTE_COORDENADAS.lng, destinoLat, destinoLng);
+            console.log(`[DISTANCIA] Haversine fallback: ${havFallback.toFixed(3)} km`);
+            return havFallback;
         }
     } catch (error) {
-        console.error('Erro ao calcular distância com OpenRouteService:', error.message);
-        // Pode verificar error.response.data para mais detalhes da API
+        console.error('Erro ao calcular distância com OpenRouteService:', error && error.message ? error.message : error);
         if (error.response && error.response.data) {
             console.error('Detalhes do erro da API:', error.response.data);
-            // Mensagem mais específica para o cliente se o erro for relevante
             if (error.response.status === 404 || error.response.status === 403) {
                 console.error('Verifique sua chave da API OpenRouteService ou o formato da requisição.');
             }
         }
-        return 0; // Retorna 0 em caso de erro na API
+        // fallback: compute straight-line distance
+        const hav = haversineKm(RESTAURANTE_COORDENADAS.lat, RESTAURANTE_COORDENADAS.lng, destinoLat, destinoLng);
+        console.log(`[DISTANCIA] ORS error -> using haversine fallback: ${hav.toFixed(3)} km`);
+        return hav; // Retorna a estimativa haversine
     }
 }
 
@@ -98,12 +132,16 @@ async function analisarLocalizacao(idAtual, carrinhoAtual, msg, client, MessageM
     let valorEntrega;
     let mensagemParaCliente = '';
 
+    console.log(`[LOCALIZACAO] Distância (km) calculada pelo ORS para cliente ${idAtual}: ${distancia}`);
+
     if (distancia === 0) { // Se a distância não pôde ser calculada (erro na API ou coordenadas inválidas)
         console.warn('Distância não pôde ser calculada. Usando valor mínimo de entrega.');
         valorEntrega = calcularValorEntrega(0); // Força o valor mínimo
         mensagemParaCliente += `⚠️ Não foi possível calcular a distância exata. Será cobrado o valor mínimo de entrega.\n\n`;
     } else {
+        console.log(`[LOCALIZACAO] Chamando calcularValorEntrega para distancia=${distancia}`);
         valorEntrega = calcularValorEntrega(distancia);
+        console.log(`[LOCALIZACAO] Valor entrega calculado: R$ ${valorEntrega} (para distancia ${distancia} km)`);
         mensagemParaCliente += `*ENTREGAR NA ÚLTIMA LOCALIZAÇÃO ENVIADA?*\n➥ (Localização no mapa)`;
     }
 
@@ -142,15 +180,19 @@ function calcularValorEntrega(distanciaKm) {
     const porKm = 2; // Valor por KM excedente
     const valorMaximo = 65; // Valor máximo da entrega
 
-    if (distanciaKm <= limite) {
+    // Defensive coercion
+    const dist = Number(distanciaKm) || 0;
+    if (dist <= limite) {
+        console.log(`[FRETE] distancia=${dist}km <= limite(${limite}km). valorEntrega=${valorMinimo}`);
         return valorMinimo;
     }
 
-    const excedente = distanciaKm - limite;
+    const excedente = dist - limite;
     const valor = valorMinimo + (excedente * porKm);
     const valorCalculado = Math.round(valor); // arredonda
+    console.log(`[FRETE] calculo: dist=${dist}km, excedente=${excedente}km, raw=${valor.toFixed(2)}, arredondado=${valorCalculado}`);
 
-    // Se o valor calculado for maior que R$ 100, retorna R$ 7 (valor mínimo)
+    // Se o valor calculado for maior que valorMaximo, retorna valorMinimo (política existente)
     if (valorCalculado > valorMaximo) {
         console.log(`Valor de entrega muito alto (R$ ${valorCalculado}). Aplicando valor mínimo de R$ ${valorMinimo}.`);
         return valorMinimo;
