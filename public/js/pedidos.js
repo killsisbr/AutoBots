@@ -113,11 +113,11 @@ function setButtonLoading(buttonId, loading = true) {
   if (loading) {
     btn.disabled = true;
     btn.style.opacity = '0.6';
-    btn.innerHTML += ' ⏳'; // Indicador visual simples
+    if (!String(btn.innerHTML || '').includes('⏳')) btn.innerHTML += ' ⏳'; // Indicador visual simples
   } else {
     btn.disabled = false;
     btn.style.opacity = '1';
-    btn.innerHTML = btn.innerHTML.replace(' ⏳', ''); // Remove spinner
+    btn.innerHTML = String(btn.innerHTML || '').replace(' ⏳', ''); // Remove spinner
   }
 }
 
@@ -159,7 +159,19 @@ function renderCard(id, data) {
   const nome = data.nome || 'Cliente';
   const estado = data.estado || 'menuInicial';
   const itens = (data.carrinho && data.carrinho.carrinho) || data.carrinho || data.itens || [];
-  const total = (data.carrinho && data.carrinho.valorTotal) || data.valorTotal || data.total || 0;
+  // Compute subtotal from items to ensure totals include delivery when server value is stale
+  let _subtotal_for_header = 0;
+  try {
+    for (const it of itens) {
+      const preco = Number(it.preco || 0);
+      const qtd = Number(it.quantidade || 1);
+      _subtotal_for_header += preco * qtd;
+    }
+  } catch (e) { _subtotal_for_header = 0; }
+
+  // Prefer explicit valorTotal when provided by server, otherwise compute subtotal + entrega
+  const entregaHeader = (typeof data.valorEntrega === 'number' && data.valorEntrega > 0) ? Number(data.valorEntrega) : ((data.carrinho && typeof data.carrinho.valorEntrega === 'number') ? Number(data.carrinho.valorEntrega) : 0);
+  const total = (typeof data.valorTotal === 'number' && data.valorTotal > 0) ? Number(data.valorTotal) : (Number(_subtotal_for_header || 0) + Number(entregaHeader || 0));
   const endereco = data.endereco || '';
   
   // Determina a cor e texto do status
@@ -1770,22 +1782,74 @@ async function showConversation(id) {
     const server = await api('/api/carrinhos');
     if (server && server.carrinhos) {
       const serverCarr = server.carrinhos || {};
-      const serverData = serverCarr[id];
+      // Server stores keys sanitized (without @s.whatsapp.net / @c.us). Try both forms.
+      const serverKey = sanitizeId(id) || id;
+      let serverData = serverCarr[serverKey] || serverCarr[id];
+      // If not found, try to match by sanitized key across all server keys
+      if (!serverData) {
+        try {
+          for (const k of Object.keys(serverCarr)) {
+            if (!k) continue;
+            if (sanitizeId(k) === sanitizeId(id) || String(k) === String(id)) {
+              serverData = serverCarr[k];
+              break;
+            }
+          }
+        } catch (e) { /* ignore */ }
+      }
       if (serverData) {
         // Ensure local carrinhos entry exists
-        if (!carrinhos[id]) carrinhos[id] = serverData;
-        else {
+        if (!carrinhos[id]) {
+          // Keep server data but preserve the original client id as key in local cache
+          carrinhos[id] = serverData;
+        } else {
           // Merge basic metadata if missing locally
           carrinhos[id].nome = carrinhos[id].nome || serverData.nome;
           carrinhos[id].endereco = carrinhos[id].endereco || serverData.endereco;
           carrinhos[id].estado = carrinhos[id].estado || serverData.estado;
           carrinhos[id].carrinho = carrinhos[id].carrinho || serverData.carrinho || serverData.itens;
           carrinhos[id].valorTotal = carrinhos[id].valorTotal || serverData.valorTotal || serverData.total;
-          // Do NOT merge server-side `messages` into the local cache. This UI
-          // should only render messages that were received via socket/initial
-          // payload (local memory) to avoid showing messages from other
-          // tenant contexts. Ensure there's at least an array to avoid errors.
-          if (!Array.isArray(carrinhos[id].messages)) carrinhos[id].messages = [];
+          // Merge server-side messages for this specific client id into local cache.
+          // Deduplicate by timestamp+text+fromMe and keep most recent 200 messages.
+          try {
+            const serverMsgs = Array.isArray(serverData.messages) ? serverData.messages : (Array.isArray(serverData.carrinho && serverData.carrinho.messages) ? serverData.carrinho.messages : []);
+            const localMsgs = Array.isArray(carrinhos[id].messages) ? carrinhos[id].messages : [];
+            const combined = localMsgs.concat(serverMsgs || []);
+            const seen = new Set();
+            const dedup = [];
+            for (let i = combined.length - 1; i >= 0; i--) {
+              const m = combined[i];
+              if (!m) continue;
+              const key = `${m.timestamp||0}-${(m.text||'').slice(0,200)}-${m.fromMe?1:0}`;
+              if (seen.has(key)) continue;
+              seen.add(key);
+              dedup.push(m);
+              if (dedup.length >= 200) break;
+            }
+            // dedup currently has most-recent-first, reverse to chronological
+            carrinhos[id].messages = dedup.reverse();
+          } catch (e) {
+            if (!Array.isArray(carrinhos[id].messages)) carrinhos[id].messages = [];
+          }
+          // Also prefer server-side delivery/total values when explicitly provided
+          try {
+            if (typeof serverData.valorEntrega === 'number' && serverData.valorEntrega > 0) {
+              carrinhos[id].valorEntrega = Number(serverData.valorEntrega);
+            } else if (serverData.carrinho && typeof serverData.carrinho.valorEntrega === 'number') {
+              carrinhos[id].valorEntrega = Number(serverData.carrinho.valorEntrega);
+            }
+            if (typeof serverData.valorTotal === 'number' && serverData.valorTotal > 0) {
+              carrinhos[id].valorTotal = Number(serverData.valorTotal);
+            } else if (typeof serverData.total === 'number' && serverData.total > 0) {
+              carrinhos[id].valorTotal = Number(serverData.total);
+            }
+          } catch(e) { /* ignore merge errors */ }
+          // If local has no messages but server has, copy them so the modal shows history
+          try {
+            if ((!Array.isArray(carrinhos[id].messages) || carrinhos[id].messages.length === 0) && Array.isArray(serverData.messages) && serverData.messages.length > 0) {
+              carrinhos[id].messages = serverData.messages.slice(0,200);
+            }
+          } catch(e) {}
         }
       }
     }
@@ -1796,6 +1860,9 @@ async function showConversation(id) {
 
   const data = carrinhos[id] || {};
   title.textContent = `${data.nome || 'Cliente'} — ${sanitizeId(id)}`;
+
+  // After merging server-side values, refresh the card UI so header totals reflect latest server data
+  try { renderAll(); } catch(e) {}
 
   // Render message history from local in-memory `carrinhos` only. This avoids
   // cross-tenant history issues introduced when merging server-side data, but
@@ -1879,7 +1946,7 @@ async function showConversation(id) {
       }).join('');
     }).join('');
   }
-  // calcula subtotal (soma dos itens), taxa de entrega e total (subtotal + entrega)
+    // calcula subtotal (soma dos itens), taxa de entrega e total (subtotal + entrega)
   (function(){
     let subtotal = 0;
     try {
@@ -1892,13 +1959,23 @@ async function showConversation(id) {
     } catch(e) { subtotal = Number(data.valorTotal || 0); }
 
     let entregaVal = 0;
-    try { if (data.entrega && typeof data.valorEntrega === 'number' && data.valorEntrega > 0) entregaVal = Number(data.valorEntrega); } catch(e) {}
+    try {
+      // Do not rely on a boolean `data.entrega` flag. Prefer explicit numeric fields from different shapes
+      if (typeof data.valorEntrega === 'number' && data.valorEntrega > 0) {
+        entregaVal = Number(data.valorEntrega);
+      } else if (data.carrinho && typeof data.carrinho.valorEntrega === 'number' && data.carrinho.valorEntrega > 0) {
+        entregaVal = Number(data.carrinho.valorEntrega);
+      } else if (typeof data.valor_entrega === 'number' && data.valor_entrega > 0) {
+        // some APIs may use snake_case
+        entregaVal = Number(data.valor_entrega);
+      }
+    } catch(e) {}
 
     const total = Number((subtotal + (entregaVal || 0)).toFixed(2));
 
     // Fill modal fields: subtotal, entrega, total
-    try { document.getElementById('conv-subtotal').textContent = Number(subtotal || 0).toFixed(2); } catch(e) {}
-    try { document.getElementById('conv-taxa').textContent = Number(entregaVal || 0).toFixed(2); } catch(e) {}
+  try { document.getElementById('conv-subtotal').textContent = Number(subtotal || 0).toFixed(2); } catch(e) {}
+  try { document.getElementById('conv-taxa').textContent = Number(entregaVal || 0).toFixed(2); } catch(e) {}
     try { valorEl.textContent = Number(total || data.valorTotal || 0).toFixed(2); } catch(e) {}
 
     // If forma de pagamento is present in data, show it in the modal (append to subtotal area)

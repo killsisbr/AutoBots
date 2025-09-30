@@ -9,6 +9,14 @@ function esperarResposta(carrinhoAtual) {
             
             // Suponha que 'respostaUsuario' seja a resposta do usuário
             let respostaUsuario = carrinhoAtual.respUser || carrinhoAtual.lastMsg;
+            try {
+                // Log debug information to understand why responses may be missing or malformed
+                if (respostaUsuario) {
+                    console.log(`[DEBUG][esperarResposta] encontrada resposta para carrinho ${carrinhoAtual && (carrinhoAtual.id||carrinhoAtual.numero || carrinhoAtual.cliente) ? (carrinhoAtual.id||carrinhoAtual.numero || carrinhoAtual.cliente) : '(unknown)'} -> '${String(respostaUsuario).replace(/\n/g,'\\n')}'`);
+                } else {
+                    console.log(`[DEBUG][esperarResposta] sem resposta ainda para carrinho ${carrinhoAtual && (carrinhoAtual.id||carrinhoAtual.numero || carrinhoAtual.cliente) ? (carrinhoAtual.id||carrinhoAtual.numero || carrinhoAtual.cliente) : '(unknown)'} - tentativas=${tentativas}`);
+                }
+            } catch(e) {}
   
             if (respostaUsuario) {
                 resolve(respostaUsuario);
