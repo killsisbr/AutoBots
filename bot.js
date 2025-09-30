@@ -3081,19 +3081,20 @@ io.on('connection', async (socket) => {
         }
       } catch (e) { /* ignore fs errors and continue to state check */ }
 
-      const finalState = (carrinhoService && carrinhoService.stats && carrinhoService.stats.menuFinalizado) || 'finalizado';
-      const saiuState = (carrinhoService && carrinhoService.stats && carrinhoService.stats.saiuParaEntrega) || 'saiu_para_entrega';
-      if (!carrinho.estado || (String(carrinho.estado) !== String(finalState) && String(carrinho.estado) !== String(saiuState))) {
-        // allow printing when already marked as saiu_para_entrega as well
-        return socket.emit('admin:ack', { ok: false, error: 'not_finalized' });
-      }
+      // Previously we blocked printing unless the cart was 'finalizado' or 'saiu_para_entrega'.
+      // Remove that restriction so admins can print any cart state on demand.
+      try {
+        console.log(`[ADMIN] Impressão solicitada para ${idNorm} (estado atual: ${String(carrinho.estado || 'null')})`);
+      } catch (e) { /* ignore logging errors */ }
       // Attempt to save/generate the PDF (salvarPedido returns after trying to create PDF)
       try {
         if (carrinhoService && typeof carrinhoService.salvarPedido === 'function') {
           // salvarPedido will generate the PDF and try to print; pass state so file annotates it
           const clienteId = restaurantId || 'brutus-burger'; // use detected restaurantId
           // Pass forcePrint flag so backend can regenerate from in-memory cart when requested
-          await carrinhoService.salvarPedido(idNorm, carrinho.estado || finalState, clienteId, Boolean(data && data.forcePrint));
+          // Also pass current formaDePagamento from the in-memory carrinho as a fallback, to ensure the receipt shows it
+          const forma = (carrinho && carrinho.formaDePagamento) ? carrinho.formaDePagamento : null;
+          await carrinhoService.salvarPedido(idNorm, carrinho.estado || finalState, clienteId, Boolean(data && data.forcePrint), forma);
         }
       } catch (err) {
         console.error('[ADMIN] Erro ao gerar o PDF:', err);

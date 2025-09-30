@@ -1879,26 +1879,48 @@ async function showConversation(id) {
       }).join('');
     }).join('');
   }
-  // calcula valor total a partir dos itens caso data.valorTotal não esteja presente
+  // calcula subtotal (soma dos itens), taxa de entrega e total (subtotal + entrega)
   (function(){
-    let total = 0;
+    let subtotal = 0;
     try {
-  // conv-saiu removed from modal; main tab still has the 'Saiu' button
       const itensCalc = (data.carrinho || []);
       for (const it of itensCalc) {
         const preco = Number(it.preco || 0);
         const qtd = Number(it.quantidade || 1);
-        total += preco * qtd;
+        subtotal += preco * qtd;
       }
-    } catch(e) { total = Number(data.valorTotal||0); }
-    
-    // Keep total as products-only (exclude delivery fee). Delivery is shown separately.
+    } catch(e) { subtotal = Number(data.valorTotal || 0); }
+
     let entregaVal = 0;
     try { if (data.entrega && typeof data.valorEntrega === 'number' && data.valorEntrega > 0) entregaVal = Number(data.valorEntrega); } catch(e) {}
-    const produtoTotal = Math.max(0, Number(total) - Number(entregaVal || 0));
-    valorEl.textContent = Number(produtoTotal || data.valorTotal || 0).toFixed(2);
-    // set delivery fee display in modal
-    try { document.getElementById('conv-taxa').textContent = (data.valorEntrega && Number(data.valorEntrega) ? Number(data.valorEntrega).toFixed(2) : '0.00'); } catch(e) {}
+
+    const total = Number((subtotal + (entregaVal || 0)).toFixed(2));
+
+    // Fill modal fields: subtotal, entrega, total
+    try { document.getElementById('conv-subtotal').textContent = Number(subtotal || 0).toFixed(2); } catch(e) {}
+    try { document.getElementById('conv-taxa').textContent = Number(entregaVal || 0).toFixed(2); } catch(e) {}
+    try { valorEl.textContent = Number(total || data.valorTotal || 0).toFixed(2); } catch(e) {}
+
+    // If forma de pagamento is present in data, show it in the modal (append to subtotal area)
+    try {
+      const paymentElId = 'conv-pagamento';
+      let paymentEl = document.getElementById(paymentElId);
+      if (!paymentEl) {
+        const parent = document.querySelector('#conversation-content > div:nth-child(2) > div:nth-child(2)');
+        if (parent) {
+          paymentEl = document.createElement('div');
+          paymentEl.id = paymentElId;
+          paymentEl.style.marginTop = '8px';
+          paymentEl.style.fontSize = '14px';
+          paymentEl.style.color = '#fff';
+          parent.appendChild(paymentEl);
+        }
+      }
+      if (paymentEl) {
+        const forma = (data.formaDePagamento || data.formaPagamento || (data.carrinho && data.carrinho.formaDePagamento)) || '';
+        paymentEl.textContent = forma ? (`Forma de pagamento: ${forma}`) : '';
+      }
+    } catch(e) {}
   })();
 
   openWa.onclick = () => { window.open(`https://wa.me/${id.replace('@s.whatsapp.net','')}`); };

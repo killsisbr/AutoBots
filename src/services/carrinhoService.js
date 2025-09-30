@@ -649,7 +649,7 @@ function imprimirPedidoFromRecord(pedidoRecord) {
     } catch (e) { console.error('Erro em imprimirPedidoFromRecord:', e); return '<html><body>Erro ao renderizar pedido</body></html>'; }
 }
 
-async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger', forcePrint = false) {
+async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger', forcePrint = false, formaDePagamentoFallback = null) {
     // MODIFICADO: Altera o caminho para ser relativo ao diretório de trabalho atual (writable)
     const ordersDir = path.join(process.cwd(), 'Pedidos');
     const filePath = path.join(ordersDir, `${idAtual}.pdf`);
@@ -702,6 +702,7 @@ async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger', forceP
                 raw: carrinho ? {
                     nome: carrinho.nome || null,
                     endereco: carrinho.endereco || null,
+                    formaDePagamento: carrinho ? (carrinho.formaDePagamento || null) : null,
                     valorTotal: carrinho ? valorTotal(resolvedId || idAtual, clienteId) : 0,
                     carrinho: carrinho && Array.isArray(carrinho.carrinho) ? carrinho.carrinho.map(i => ({ id: i.id, nome: i.nome, quantidade: i.quantidade, preparo: i.preparo, preco: i.preco })) : []
                 } : {}
@@ -793,7 +794,8 @@ async function salvarPedido(idAtual, estado, clienteId = 'brutus-burger', forceP
             lng: cliente.lng || null,
             entrega: !!cliente.entrega,
             valorEntrega: (typeof cliente.valorEntrega === 'number') ? cliente.valorEntrega : null,
-            formaDePagamento: cliente.formaDePagamento || null,
+            // Prefer explicit cliente.formaDePagamento; fallback to value passed by caller when available
+            formaDePagamento: (typeof cliente.formaDePagamento !== 'undefined' && cliente.formaDePagamento) ? cliente.formaDePagamento : (formaDePagamentoFallback || null),
             observacao: cliente.observacao || null,
             troco: (typeof cliente.troco !== 'undefined') ? cliente.troco : null,
             valorTotal: valorTotal(resolvedId, clienteId),
