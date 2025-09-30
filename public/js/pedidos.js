@@ -16,7 +16,7 @@ function buildApiUrl(endpoint) {
   // Sempre incluir o restaurantId na URL para multi-tenant
   const separator = endpoint.includes('?') ? '&' : '?';
   // set both keys for compatibility with different clients
-  return `${endpoint}${separator}restaurant=${encodeURIComponent(restaurantId)}&restaurant_id=${encodeURIComponent(restaurantId)}`;
+  return `${endpoint}${separator}restaurant=${encodeURIComponent(restaurantId)}&restaurant_id=${encodeURIComponent(restaurantId)}&clienteId=${encodeURIComponent(restaurantId)}`;
 }
 
 // Wrapper fetch que mostra mensagens amigáveis e retorna JSON/text
@@ -149,7 +149,7 @@ function emitAction(actionType, data, buttonId = null) {
   });
 }
 
-// Função para renderizar um card de pedido
+// Função para renderizar um card de pedido (versão melhorada)
 function renderCard(id, data) {
   const card = document.createElement('div');
   card.className = 'card';
@@ -159,69 +159,73 @@ function renderCard(id, data) {
   const nome = data.nome || 'Cliente';
   const estado = data.estado || 'menuInicial';
   const itens = (data.carrinho && data.carrinho.carrinho) || data.carrinho || data.itens || [];
-    const total = (data.carrinho && data.carrinho.valorTotal) || data.valorTotal || data.total || 0;
+  const total = (data.carrinho && data.carrinho.valorTotal) || data.valorTotal || data.total || 0;
   const endereco = data.endereco || '';
   
-  // Determina a cor do status baseado no estado
-  let statusColor = '#95a5a6'; // cinza padrão
+  // Determina a cor e texto do status
+  let statusColor = '#95a5a6';
   let statusText = estado;
   
   if (estado.includes('menu') || estado.includes('confirmacao')) {
-    statusColor = '#f1c40f'; // amarelo
-    statusText = 'Pedindo / Em confirmação';
+    statusColor = '#f1c40f';
+    statusText = 'Pedindo';
   } else if (estado.includes('endereco') || estado.includes('Endereco')) {
-    statusColor = '#3498db'; // azul
-    statusText = 'Coletando endereço';
+    statusColor = '#3498db';
+    statusText = 'Endereço';
   } else if (estado === 'finalizado' || estado.includes('final')) {
-    statusColor = '#2ecc71'; // verde
+    statusColor = '#2ecc71';
     statusText = 'Finalizado';
   }
   
   card.innerHTML = `
-    <div class="top-row">
-      <h3>${nome}</h3>
-      <div class="pill" style="background-color: ${statusColor}; color: #fff">${statusText}</div>
-    </div>
-    <p class="small">ID: ${sanitizedId}</p>
-    ${endereco ? `<p class="small">📍 ${endereco}</p>` : ''}
-    
-    <div class="cart-items">
-      ${itens.length === 0 ? '<div class="small">Carrinho vazio</div>' : 
-        itens.map((item, index) => `
-          <div class="cart-item">
-            <div>
-              <strong>${item.quantidade || 1}x ${item.nome || item.id || 'Item'}</strong>
-              ${item.preparo ? `<br><small class="muted">${item.preparo}</small>` : ''}
-            </div>
-            <div class="item-actions">
-              <button class="qty-btn" onclick="emitUpdateQty('${id}', ${index}, -1)">-</button>
-              <span>${item.quantidade || 1}</span>
-              <button class="qty-btn" onclick="emitUpdateQty('${id}', ${index}, 1)">+</button>
-              <button class="trash-btn" onclick="removeItem('${id}', ${index})">🗑️</button>
-            </div>
-          </div>
-        `).join('')
-      }
-    </div>
-    
-    <div style="margin-top: 12px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1)">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px">
-        <strong>Total: R$ ${Number(total).toFixed(2)}</strong>
-        <div style="display: flex; gap: 6px">
-          <input type="text" id="add-input-${sanitizedId}" placeholder="Adicionar item..." 
-                 style="padding: 6px; border-radius: 4px; border: 1px solid #333; background: #0f0f0f; color: #eee; width: 140px; font-size: 12px">
-          <button id="add-btn-${sanitizedId}" class="small" onclick="addItemByName('${id}', '${sanitizedId}')">+</button>
+    <div class="card-header">
+      <div class="client-info">
+        <h3 class="client-name">${nome}</h3>
+        <div class="client-meta">
+          <span class="client-id">${sanitizedId}</span>
+          <span class="status-badge" style="background:${statusColor};">${statusText}</span>
         </div>
       </div>
+      <div class="order-total">
+        <div class="total-label">Total</div>
+        <div class="total-amount">R$ ${Number(total).toFixed(2)}</div>
+      </div>
     </div>
-    
-    <div class="controls">
-      <button class="chat-btn" onclick="showConversation('${id}')">💬 Conversa</button>
-      <button class="final-btn" onclick="finalizar('${id}')">✅ Finalizar</button>
-      ${(estado === 'finalizado' || estado.includes('final')) ? 
-        `<button class="delivery-btn" onclick="saiuEntrega('${id}')">🚚 Saiu para entrega</button>` : ''}
-      <button class="secondary small" onclick="setState('${id}', 'menuInicial')">🔄 Reiniciar</button>
-      <button class="danger small" onclick="reset('${id}')">🗑️ Limpar</button>
+
+    <div class="card-content">
+      ${itens.length === 0 ? 
+        '<div class="empty-cart">Carrinho vazio</div>' : 
+        `<div class="cart-items">
+          ${itens.map((item, index) => `
+            <div class="cart-item">
+              <div class="item-info">
+                <div class="item-name">${item.quantidade || 1}x ${item.nome || item.id || 'Item'}</div>
+                ${item.preparo ? `<div class="item-preparation">${item.preparo}</div>` : ''}
+              </div>
+              <div class="item-controls">
+                <button class="control-btn" onclick="emitUpdateQty('${id}', ${index}, -1)">−</button>
+                <span class="item-qty">${item.quantidade || 1}</span>
+                <button class="control-btn" onclick="emitUpdateQty('${id}', ${index}, 1)">+</button>
+                <button class="control-btn delete" onclick="removeItem('${id}', ${index})">×</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>`
+      }
+      
+      <div class="add-item-section">
+        <input type="text" id="add-input-${sanitizedId}" placeholder="Adicionar item (ex: 1 x burger)" 
+               class="add-input" />
+        <button id="add-btn-${sanitizedId}" class="add-btn" onclick="addItemByName('${id}', '${sanitizedId}')">+</button>
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <button class="action-btn secondary" onclick="setState('${id}', 'menuInicial')">Reset</button>
+      <button class="action-btn danger" onclick="reset('${id}')">Limpar</button>
+      <button class="action-btn chat" onclick="showConversation('${id}')">Conversa</button>
+      <button class="action-btn success" onclick="finalizar('${id}')">Finalizar</button>
+      ${ (estado && (String(estado).includes('final') || String(estado) === 'finalizado')) ? `<button id="delivery-btn-${sanitizedId}" class="action-btn delivery" onclick="saiuEntrega('${id}')">Saiu</button>` : '' }
     </div>
   `;
   
@@ -273,7 +277,8 @@ function finalizar(id) {
 }
 
 function saiuEntrega(id) {
-  emitAction('admin:saiuEntrega', { id }, `delivery-btn-${id}`);
+  const btnId = `delivery-btn-${sanitizeId(id)}`;
+  emitAction('admin:saiuEntrega', { id }, btnId);
 }
 
 // mapa dinâmico para itens adicionados via modal (nome limpo -> id)
@@ -1604,7 +1609,7 @@ function addItemByName(id, contato) {
   const bebidaId = mapaBebidas[limparTexto(nome)];
   if (bebidaId) {
     console.log('emit admin:addItem (bebida)', { id, itemId: bebidaId, quantidade, nome, tipo: 'Bebida' });
-    emitAction('admin:addItem', { id, itemId: bebidaId, quantidade, nome, tipo: 'Bebida' }, `add-btn-${contato}`);
+    emitAction('admin:addItem', { id, itemId: bebidaId, quantidade, nome, tipo: 'Bebida', preparo }, `add-btn-${contato}`);
     input.value = '';
     return;
   }
@@ -1612,7 +1617,7 @@ function addItemByName(id, contato) {
   const mapaId = mapaCardapio[limparTexto(nome)];
   if (mapaId) {
     console.log('emit admin:addItem (mapaCardapio)', { id, itemId: mapaId, quantidade, nome });
-    emitAction('admin:addItem', { id, itemId: mapaId, quantidade, nome }, `add-btn-${contato}`);
+    emitAction('admin:addItem', { id, itemId: mapaId, quantidade, nome, preparo }, `add-btn-${contato}`);
     input.value = '';
     return;
   }
@@ -1776,21 +1781,11 @@ async function showConversation(id) {
           carrinhos[id].estado = carrinhos[id].estado || serverData.estado;
           carrinhos[id].carrinho = carrinhos[id].carrinho || serverData.carrinho || serverData.itens;
           carrinhos[id].valorTotal = carrinhos[id].valorTotal || serverData.valorTotal || serverData.total;
-
-          // Merge messages, avoiding duplicates by using a simple key (timestamp+text)
-          try {
-            const localMsgs = Array.isArray(carrinhos[id].messages) ? carrinhos[id].messages : [];
-            const serverMsgs = Array.isArray(serverData.messages) ? serverData.messages : [];
-            const seen = new Set(localMsgs.map(m => `${m.timestamp || ''}::${(m.text||'').slice(0,200)}`));
-            for (const m of serverMsgs) {
-              const key = `${m.timestamp || ''}::${(m.text||'').slice(0,200)}`;
-              if (!seen.has(key)) { localMsgs.push(m); seen.add(key); }
-            }
-            // keep newest last and truncate to 200
-            localMsgs.sort((a,b) => (Number(a.timestamp||0) - Number(b.timestamp||0)));
-            if (localMsgs.length > 200) localMsgs.splice(0, localMsgs.length - 200);
-            carrinhos[id].messages = localMsgs;
-          } catch(e) { /* non-fatal */ }
+          // Do NOT merge server-side `messages` into the local cache. This UI
+          // should only render messages that were received via socket/initial
+          // payload (local memory) to avoid showing messages from other
+          // tenant contexts. Ensure there's at least an array to avoid errors.
+          if (!Array.isArray(carrinhos[id].messages)) carrinhos[id].messages = [];
         }
       }
     }
@@ -1802,6 +1797,11 @@ async function showConversation(id) {
   const data = carrinhos[id] || {};
   title.textContent = `${data.nome || 'Cliente'} — ${sanitizeId(id)}`;
 
+  // Render message history from local in-memory `carrinhos` only. This avoids
+  // cross-tenant history issues introduced when merging server-side data, but
+  // still shows the conversation that the panel knows about (socket initial
+  // payload / recent messages). If no messages are present, show an empty
+  // state message.
   body.innerHTML = '';
   const wrap = document.createElement('div');
   wrap.style.display = 'flex';

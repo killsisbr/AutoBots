@@ -256,28 +256,6 @@ async function menuInicial(idAtual, carrinhoAtual, msg, client, MessageMedia, cl
                 atualizarEstadoDoCarrinho(idAtual, stats.menuBebidas);
             }
             break;
-
-        // --- Saudações e Mensagens de Início ---
-        case 'oi':
-        case 'olá':
-        case 'ola':
-        case 'hello':
-        case 'hi':
-        case 'bom dia':
-        case 'boa tarde':
-        case 'boa noite':
-        case 'cardapio':
-        case 'cardápio':
-        case 'menu':
-        case 'começar':
-        case 'comecar':
-        case 'iniciar':
-        case 'start':
-            console.log(`👋 [menuInicial] GATILHO: Saudação reconhecida: "${lastMsgLower}"`);
-            // Força a apresentação do cardápio mesmo se já foi apresentado antes
-            carrinhoAtual.aprt = false;
-            // Continua para o caso padrão para mostrar o cardápio
-            
         // --- Default: Exibir Cardápio e Mensagem Inicial ---
         default:
             console.log(`🎯 [menuInicial] CASO PADRÃO: Analisando mensagem: "${lastMsgLower}"`);
@@ -364,8 +342,8 @@ async function menuInicial(idAtual, carrinhoAtual, msg, client, MessageMedia, cl
                 console.log(`🔍 [DEBUG] Stack trace:`, error.stack);
             }
             
-            if (carrinhoAtual.aprt === false) {
-                carrinhoAtual.aprt = true;
+            if (carrinhoAtual.envioCardapio !== true) {
+                carrinhoAtual.envioCardapio = true;
                 // Usando path.resolve para construir um caminho absoluto robusto para a raiz do projeto
                 const rootPath = path.resolve(__dirname, '..', '..', '..');
                 const cardapioPath = path.join(rootPath, 'cardapio.jpg');

@@ -665,16 +665,54 @@
         }
 
         // Sistema Multi-Tenant - Obter clienteId da sessão
+        // Tornar resiliente: respeita forcedClienteId, window.currentRestaurantId, URL params e só então tenta /api/auth/me
         async function getClienteId() {
+            // 1) forcedClienteId explicitamente definido por páginas de deploy
+            if (window.forcedClienteId) {
+                console.log('[mensagens] usando forcedClienteId ->', window.forcedClienteId);
+                return window.forcedClienteId;
+            }
+
+            // 2) valor global definido por outras páginas (ex: pedidos.html)
+            if (window.currentRestaurantId) {
+                console.log('[mensagens] usando window.currentRestaurantId ->', window.currentRestaurantId);
+                return window.currentRestaurantId;
+            }
+
+            // 3) parâmetro de URL ?restaurant=... ou ?clienteId=...
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const r = urlParams.get('restaurant') || urlParams.get('clienteId') || urlParams.get('clienteID');
+                if (r) {
+                    console.log('[mensagens] usando clienteId extraído da URL ->', r);
+                    return r;
+                }
+            } catch (e) {
+                // ignore
+            }
+
+            // 4) fallback para sessão/autenticação (API)
             try {
                 const response = await fetch('/api/auth/me');
                 if (response.ok) {
                     const data = await response.json();
-                    return data.id;
+                    if (data && data.id) {
+                        console.log('[mensagens] usando clienteId vindo de /api/auth/me ->', data.id);
+                        return data.id;
+                    }
                 }
             } catch (error) {
-                console.error('Erro ao obter clienteId:', error);
+                console.warn('Erro ao obter clienteId via /api/auth/me (pode ser página pública):', error);
             }
+
+            // última opção: tentar valores de storage (caso exista)
+            const stored = sessionStorage.getItem('clienteId') || localStorage.getItem('clienteId');
+            if (stored) {
+                console.log('[mensagens] usando clienteId vindo de storage ->', stored);
+                return stored;
+            }
+
+            console.warn('[mensagens] clienteId não encontrado');
             return null;
         }
 
@@ -682,10 +720,12 @@
         async function buildApiUrl(endpoint) {
             const clienteId = await getClienteId();
             if (!clienteId) {
-                throw new Error('Cliente não autenticado');
+                // Allow calling endpoints without clienteId in some cases, but log to help debugging
+                console.warn('[mensagens] buildApiUrl sem clienteId, retornando endpoint sem tenant');
+                return endpoint;
             }
             const separator = endpoint.includes('?') ? '&' : '?';
-            return `${endpoint}${separator}clienteId=${clienteId}`;
+            return `${endpoint}${separator}clienteId=${encodeURIComponent(clienteId)}`;
         }
 
         // Load Data
@@ -730,11 +770,13 @@
 
         async function loadMensagensForSelect() {
             try {
-                const response = await fetch('/api/mensagens');
+                // Use tenant-aware URL so the select shows mensagens for the current cliente
+                const apiUrl = await buildApiUrl('/api/mensagens');
+                const response = await fetch(apiUrl);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
-                
+
                 const mensagens = await response.json();
                 const select = document.getElementById('gatilho-mensagem');
                 
@@ -873,6 +915,7 @@
             };
             
             try {
+                // Use tenant-aware URL for both create and update
                 const baseUrl = editingId ? `/api/mensagens/${editingId}` : '/api/mensagens';
                 const url = await buildApiUrl(baseUrl);
                 const method = editingId ? 'PUT' : 'POST';
@@ -906,6 +949,7 @@
             };
             
             try {
+                // Use tenant-aware URL for gatilhos as well
                 const baseUrl = editingId ? `/api/gatilhos/${editingId}` : '/api/gatilhos';
                 const url = await buildApiUrl(baseUrl);
                 const method = editingId ? 'PUT' : 'POST';

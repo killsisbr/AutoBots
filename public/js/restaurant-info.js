@@ -104,19 +104,37 @@ class RestaurantInfo {
         }
 
         // Estilos inline para garantir que funcione em qualquer página
-        container.style.cssText = `
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: ${compact ? '8px 12px' : '12px 16px'};
-            border-radius: 8px;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-size: ${compact ? '12px' : '14px'};
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            margin: ${compact ? '5px 0' : '10px 0'};
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        `;
+        if (compact) {
+            // Compact / pill style for header placement
+            container.style.cssText = `
+                background: rgba(0,0,0,0.24);
+                color: white;
+                padding: 6px 10px;
+                border-radius: 999px;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 12px;
+                box-shadow: none;
+                border: 1px solid rgba(255,255,255,0.06);
+                margin: 0;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            `;
+        } else {
+            container.style.cssText = `
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 12px 16px;
+                border-radius: 8px;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 14px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                margin: 10px 0;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            `;
+        }
 
         // Ícone do restaurante
         const icon = document.createElement('span');
@@ -180,7 +198,19 @@ class RestaurantInfo {
             await this.loadRestaurantInfo();
         }
 
-        const infoElement = this.createRestaurantInfoElement(options);
+        // Avoid duplicate inserts: remove previous .restaurant-info children
+        try {
+            const existing = element.querySelectorAll('.' + (options.className || 'restaurant-info'));
+            existing.forEach(n => n.remove());
+        } catch (e) {
+            // ignore
+        }
+
+        // If the target placeholder is inside a header.header-slim, prefer compact rendering
+        const inSlimHeader = element.closest && element.closest('header.header-slim');
+        const renderOptions = Object.assign({}, options, { compact: (options.compact || !!inSlimHeader) });
+
+        const infoElement = this.createRestaurantInfoElement(renderOptions);
         element.appendChild(infoElement);
     }
 
@@ -239,13 +269,28 @@ class RestaurantInfo {
         console.log('[DEBUG] Chamando loadRestaurantInfo...');
         await this.loadRestaurantInfo();
 
-        if (showInHeader) {
+        // If a specific placeholder exists in the page, prefer rendering there
+        // to avoid duplicate fixed header widgets. This avoids showing the
+        // same restaurant info twice (inline + fixed). If no placeholder is
+        // present and showInHeader is true, render the fixed header.
+        const placeholder = document.getElementById('restaurant-info');
+        if (placeholder) {
+            // Render into the existing element (more context-aware)
+            await this.renderInElement('restaurant-info', {
+                showEmail: headerOptions.showEmail || false,
+                compact: headerOptions.compact || false,
+                showId: headerOptions.showId !== false, // default true
+                showStatus: headerOptions.showStatus !== false
+            });
+        } else if (showInHeader) {
             await this.renderInHeader(headerOptions);
         }
 
         if (updateTitle) {
             await this.updatePageTitle(titleSuffix);
         }
+
+        // No status element handling here (removed per UI simplification)
 
         return this.restaurantData;
     }
@@ -266,15 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showInHeader: true,
             updateTitle: true
         });
-        
-        // Verificar se há um elemento com ID 'restaurant-info' para renderização automática
-        const autoRenderElement = document.getElementById('restaurant-info');
-        if (autoRenderElement) {
-            window.restaurantInfo.renderInElement('restaurant-info', {
-                showEmail: true,
-                compact: false
-            });
-        }
+            // Nota: quickSetup já renderiza no placeholder se ele existir.
     } else {
         console.log('[DEBUG] Usuário não autenticado, aguardando evento authReady');
         // Aguardar evento de autenticação
@@ -284,15 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showInHeader: true,
                 updateTitle: true
             });
-            
-            // Verificar se há um elemento com ID 'restaurant-info' para renderização automática
-            const autoRenderElement = document.getElementById('restaurant-info');
-            if (autoRenderElement) {
-                window.restaurantInfo.renderInElement('restaurant-info', {
-                    showEmail: true,
-                    compact: false
-                });
-            }
+            // Nota: quickSetup já renderiza no placeholder se ele existir.
         });
     }
 });
